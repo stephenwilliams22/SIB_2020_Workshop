@@ -16,17 +16,21 @@ output:
 
 # **Introduction**
 
-Welcome to the **SIB Days 2020 - virtual conference** Spatial Transcriptomics workshop by 10x genomics.
+Welcome to the **SIB Days 2020 - virtual conference** Spatial Transcriptomics workshop by 10x genomics!
+
 ![](https://github.com/stephenwilliams22/SIB_2020_Workshop/raw/master/images/10x%20homepage.png)
+
 
 _Example Text from Jax workshp_
 
-The purpose of this tutorial will be to walk new users through some of the steps necessary to explore Whole Genome (WGS) and Whole Exome (WES) sequencing data generated form the 10x Genomics Chromium platform and the [Longranger pipeline](https://support.10xgenomics.com/genome-exome/software/pipelines/latest/what-is-long-ranger). We will investigate the Linked-Read data using a variety of tools, all of which are freely available either from [10x Genomics](https://support.10xgenomics.com/genome-exome/software/overview/welcome) or their home repos (GitHub, SourceForge, etc.)  
+The purpose of this tutorial will be to walk users through some of the steps necessary to explore data produced by the 10x Genomics Visium Spatail Gene Expression Solution and the [Spaceranger pipeline](https://support.10xgenomics.com/spatial-gene-expression/software/pipelines/latest/what-is-space-ranger). We will investigate the datasets whith are all freely available from [10x Genomics](https://support.10xgenomics.com/spatial-gene-expression/datasets).
+
+[Seurat Tutorial](https://satijalab.org/seurat/v3.1/spatial_vignette.html)
 
 **Things to know about this workshop**
 
 1. All files that will be used can be found at: `/opt/data/10x-data/`
-2. The 10x Loupe browser can be found at your "Homepage"
+2. Getting started with R and Visium data outside of Seurat at: https://support.10xgenomics.com/spatial-gene-expression/software/pipelines/latest/rkit
 3. Reference genome for all samples is GRCh37/hg19
 4. .bam files are only for chr21
 5. .vcf and Loupe files contain information for the entire genome
@@ -34,7 +38,7 @@ The purpose of this tutorial will be to walk new users through some of the steps
 7. All 10x software including [Longranger](https://support.10xgenomics.com/genome-exome/software/downloads/latest), [Supernova](https://support.10xgenomics.com/de-novo-assembly/software/downloads/latest), and [Loupe](https://support.10xgenomics.com/genome-exome/software/downloads/latest) can be downloaded from the [10x Support Site](https://support.10xgenomics.com/) 
 
 
-# Exploring Visium Data with Seurat
+# **Exploring Visium Data with Seurat**
 ```{r Libraries, echo=TRUE, message=FALSE, warning=FALSE}
 library(Seurat)
 library(ggplot2)
