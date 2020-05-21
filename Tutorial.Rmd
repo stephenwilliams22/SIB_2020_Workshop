@@ -17,7 +17,7 @@ output:
 # **Introduction**
 
 Welcome to the **SIB Days 2020 - virtual conference** Spatial Transcriptomics workshop by 10x genomics.
-![](http://34.205.68.94/figures/10x_tech.png)
+![](https://github.com/stephenwilliams22/SIB_2020_Workshop/raw/master/images/10x%20homepage.png)
 
 _Example Text from Jax workshp_
 
