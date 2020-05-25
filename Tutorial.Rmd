@@ -100,7 +100,7 @@ SpatialFeaturePlot(mouse_brain_sa, features = c("Hpca", "Ttr"))
 ```
 SE transform
 
-Don't worry about `reachediteration limit` warnings
+Don't worry about `reachediteration limit` warnings. See https://github.com/ChristophH/sctransform/issues/25 for discussion
 
 Default assay will now be set to SCT
 ```{r}
@@ -149,6 +149,8 @@ plan("multiprocess", workers = 4)
 plan()
 ```
 
+
+The defalut UMAP calculation is performed with the [R-based UWOT](https://cran.r-project.org/web/packages/uwot/index.html) library However, you can run UMAP in python via retuculate library and `umap-learn`. We have found that for smaller datasets (<= 10k cells/spots) UWOT is great. For much larger datasets (100k +) `umap-learn` can be a faster option. 
 ```{r}
 mouse_brain_sa <- RunPCA(mouse_brain_sa, assay = "SCT", verbose = FALSE)
 mouse_brain_sa <- FindNeighbors(mouse_brain_sa, reduction = "pca", dims = 1:30)
@@ -241,12 +243,17 @@ Using the top 100 variable genes find spatially enriched ones
 This will take X minutes
 something isn't right here taking way too long
 
+- Tried on the student's R studio and it works fine for 100 genes
 
 ```{r}
 mouse_brain_sa <- FindSpatiallyVariableFeatures(mouse_brain_sa, assay = "SCT", features = VariableFeatures(mouse_brain_sa)[1:100], 
     selection.method = "markvariogram", verbose = TRUE)
 ```
 
+```{r}
+top.features <- head(SpatiallyVariableFeatures(mouse_brain_sa, selection.method = "markvariogram"), 6)
+SpatialFeaturePlot(mouse_brain_sa, features = top.features, ncol = 3, alpha = c(0.1, 1))
+```
 
 
 ```{r}
