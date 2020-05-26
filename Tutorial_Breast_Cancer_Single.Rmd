@@ -58,12 +58,6 @@ Same data just internal to 10x
 breast_cancer <- Load10X_Spatial(data.dir = "/mnt/analysis/marsoc/pipestances/HWHTFDSXX/SPATIAL_RNA_COUNTER_PD/163086/HEAD/outs/", slice = "slice1")
 ```
 
-Let's merge the data together
-```{r}
-breast_cancer <- merge(breast_cancer_1, breast_cancer_2)
-```
-
-
 There are a bunch of datasets hoted by the Satija lab in the [Seurat Data Package](https://github.com/satijalab/seurat-data).
 
 # Results
@@ -204,7 +198,10 @@ p1 <- DimPlot(breast_cancer, reduction = "umap", label = TRUE) +
                                "grey", "yellow", "green"))
 
 p2 <- SpatialDimPlot(breast_cancer, label = TRUE, label.size = 3) +
-  labs(fill = "Cluster")
+  labs(fill = "Cluster")+ 
+  scale_fill_manual(values = c("#b2df8a","#e41a1c","#377eb8","#4daf4a","#ff7f00","gold", 
+                               "#a65628", "#999999", "black", "pink", "purple", "brown",
+                               "grey", "yellow", "green"))
 
 p1 + p2 + plot_annotation(
   title = 'Clustering in UMAP and Tissue Space',
@@ -238,7 +235,7 @@ de_markers <- FindMarkers(breast_cancer, ident.1 = 4, ident.2 = 6)
 
 
 ```{r, fig.width=10, fig.height=10, warning=FALSE}
-SpatialFeaturePlot(object = breast_cancer, features = rownames(de_markers)[1:3], alpha = c(0.1, 1), ncol = 3)
+SpatialFeaturePlot(object = breast_cancer, features = rownames(de_markers)[1:10], alpha = c(0.1, 1), ncol = 3)
 ```
 
 what are the top variable features?
@@ -265,7 +262,6 @@ Some methods
 
 Using the top 100 variable genes find spatially enriched ones. Note that in the Seurat Spatial Tutorial they use 1000 genes. You can also use all genes but that will take a long time. Using a calucation of [Morans I](https://en.wikipedia.org/wiki/Moran%27s_I) can sometimes be a faster approach, especially if you are using parallization.
 
-This falls apart for merged data. 
 
 ```{r}
 breast_cancer <- FindSpatiallyVariableFeatures(breast_cancer, 
@@ -280,15 +276,18 @@ Have a look at the spatially variable genes calculated by `markvariogram` ordere
 SpatiallyVariableFeatures(breast_cancer, selection.method = "markvariogram", decreasing = TRUE)
 ```
 
-```{r, fig.width=10, fig.height=8}
-top.features_trendseq <- head(SpatiallyVariableFeatures(breast_cancer, selection.method = "markvariogram"), 6)
-SpatialFeaturePlot(breast_cancer, features = top.features_trendseq, ncol = 3, alpha = c(0.1, 1))
+```{r, fig.width=10, fig.height=8, warning=FALSE}
+top.features_trendseq <- head(SpatiallyVariableFeatures(breast_cancer, selection.method = "markvariogram"), 8)
+SpatialFeaturePlot(breast_cancer, features = top.features_trendseq, ncol = 4, alpha = c(0.1, 1))
 ```
 
 Moran's I implamentation. For other spatial data types the x.cuts and y.cuts determins the grid that is laied over the tissue in the capture area. Here we'll remove those
 ```{r}
-breast_cancer <- FindSpatiallyVariableFeatures(breast_cancer, assay = "SCT", slot = "scale.data", features = VariableFeatures(breast_cancer)[1:100], 
-    selection.method = "moransi")
+breast_cancer <- FindSpatiallyVariableFeatures(breast_cancer, 
+                                               assay = "SCT", 
+                                               slot = "scale.data", 
+                                               features = VariableFeatures(breast_cancer)[1:100],
+                                               selection.method = "moransi")
 ```
 
 
@@ -298,7 +297,7 @@ Have a look at the spatially variable genes calculated by `moransi` ordered from
 SpatiallyVariableFeatures(breast_cancer, selection.method = "moransi", decreasing = TRUE)
 ```
 
-```{r, fig.width=10, fig.height=8}
+```{r, fig.width=10, fig.height=8, warning=FALSE}
 top.features_moransi <- head(SpatiallyVariableFeatures(breast_cancer, selection.method = "moransi"), 8)
 SpatialFeaturePlot(breast_cancer, features = top.features_moransi, ncol = 4, alpha = c(0.1, 1))
 ```
@@ -322,6 +321,25 @@ ggplot(spatially_variable_genes, aes(x=moransi.spatially.variable.rank,y=markvar
   annotate("text", x = 25, y = 75, label = paste("Pearson's Correlation\n", round(mm_cor$estimate[1], digits = 2), sep = ""))+
   theme_bw()
 ```
+
+# Cancer annotations
+
+Where are these genes being expressed relative to pathogist annotation?
+
+```{r, fig.height=8, fig.width=8}
+ca <- readbitmap::read.bitmap("images/Breast Cancer Path.png")
+# in the tutorial
+# ca <- readbitmap::read.bitmap('/mnt/libs/shared_data/human_breast_cancer_1/images/Breast_Cancer_Path.png')
+plot(0:1,0:1,type="n",ann=FALSE,axes=FALSE)
+rasterImage(ca,0,0,1,1)
+```
+
+Looks like the  Matrix Gla protein ( _MGP_ ) gene is enriched in Ductal Carcinoma _In Situ_. Not a lot is known about _MGP_ in the context of cancer but it looks like it could be an interesing novel gene to investiage with regard to Ductal Carcinoma _In Situ_.
+
+```{r, warning=FALSE}
+SpatialFeaturePlot(object = breast_cancer, features = "MGP", alpha = c(0.1, 1), ncol = 3)
+```
+
 
 
 
