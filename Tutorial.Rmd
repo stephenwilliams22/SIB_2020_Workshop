@@ -1,5 +1,6 @@
 ---
 title: "SIB Days 2020 - Virtual Conference"
+subtitle: "Mouse Brain"
 author:
   - Patrick Roelli, Computational Biologist 2 - Computational Biology^[10x Genomics, patrick.roelli@10xgenomics.com ]
   - Stefania Giacomello, Computational Biologist 2 - Computational Biology^[10x Genomics, stephen.williams@10xgenomics.com]
