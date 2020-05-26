@@ -239,21 +239,75 @@ what are the top de genes?
 rownames(de_markers)[1:10]
 ```
 
-Using the top 100 variable genes find spatially enriched ones
-This will take X minutes
-something isn't right here taking way too long
+## Spatially Variable Genes
 
-- Tried on the student's R studio and it works fine for 100 genes
+So what about spatial enrichment? 
+
+Some methods
+1. [Trendsceek](https://www.nature.com/articles/nmeth.4634)
+2. [Splotch](https://www.biorxiv.org/content/10.1101/757096v1)
+3. [SPARK](https://www.nature.com/articles/s41592-019-0701-7)
+4. [SpatialDE](https://www.nature.com/articles/nmeth.4636)
+  + We have found this implimenton not to be very effective. It's also not under active development
+
+
+Using the top 100 variable genes find spatially enriched ones. Note that in the Seurat Spatial Tutorial they use 1000 genes. You can also use all genes but that will take a long time. Using a calucation of [Morans I](https://en.wikipedia.org/wiki/Moran%27s_I) can sometimes be a faster approach, especially if you are using parallization.
+
+This step will take ~1 minute.
 
 ```{r}
 mouse_brain_sa <- FindSpatiallyVariableFeatures(mouse_brain_sa, assay = "SCT", features = VariableFeatures(mouse_brain_sa)[1:100], 
     selection.method = "markvariogram", verbose = TRUE)
 ```
 
+Have a look at the spatially variable genes calculated by `markvariogram` ordered from most variable to least variable
 ```{r}
-top.features <- head(SpatiallyVariableFeatures(mouse_brain_sa, selection.method = "markvariogram"), 6)
-SpatialFeaturePlot(mouse_brain_sa, features = top.features, ncol = 3, alpha = c(0.1, 1))
+SpatiallyVariableFeatures(mouse_brain_sa, selection.method = "markvariogram", decreasing = TRUE)
 ```
+
+```{r, fig.width=10, fig.height=8}
+top.features_trendseq <- head(SpatiallyVariableFeatures(mouse_brain_sa, selection.method = "markvariogram"), 6)
+SpatialFeaturePlot(mouse_brain_sa, features = top.features_trendseq, ncol = 3, alpha = c(0.1, 1))
+```
+
+Moran's I implamentation. For other spatial data types the x.cuts and y.cuts determins the grid that is laied over the tissue in the capture area. Here we'll remove those
+```{r}
+mouse_brain_sa <- FindSpatiallyVariableFeatures(mouse_brain_sa, assay = "SCT", slot = "scale.data", features = VariableFeatures(mouse_brain_sa)[1:100], 
+    selection.method = "moransi")
+```
+
+
+Have a look at the spatially variable genes calculated by `moransi` ordered from most variable to least variable
+
+```{r}
+SpatiallyVariableFeatures(mouse_brain_sa, selection.method = "moransi", decreasing = TRUE)
+```
+
+```{r, fig.width=10, fig.height=8}
+top.features_moransi <- head(SpatiallyVariableFeatures(mouse_brain_sa, selection.method = "moransi"), 8)
+SpatialFeaturePlot(mouse_brain_sa, features = top.features_moransi, ncol = 4, alpha = c(0.1, 1))
+```
+
+We can see that the results are slightly different. So let's take a look at why.
+
+```{r}
+spatially_variable_genes <- mouse_brain_sa@assays$SCT@meta.features %>%
+  tidyr::drop_na()
+
+spatially_variable_genes
+```
+You can see the two methods show 
+```{r}
+mm_cor <- cor.test(spatially_variable_genes$moransi.spatially.variable.rank, spatially_variable_genes$markvariogram.spatially.variable.rank)
+ggplot(spatially_variable_genes, aes(x=moransi.spatially.variable.rank,y=markvariogram.spatially.variable.rank))+
+  geom_point()+
+  geom_smooth()+
+  xlab("Morans I Rank")+
+  ylab("Markvariogram Rank")+
+  annotate("text", x = 25, y = 75, label = paste("Pearson's Correlation\n", round(mm_cor$estimate[1], digits = 2), sep = ""))+
+  theme_bw()
+```
+
 
 
 ```{r}
