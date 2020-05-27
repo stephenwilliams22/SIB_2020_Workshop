@@ -1,11 +1,11 @@
 ---
-title: "SIB Days 2020 - Virtual Conference"
-subtitle: "Breast Cancer. Single Slice"
+title: "SIB Days 2020 - Virtual Conference - June 4, 2020"
+subtitle: "Dataset: Breast Cancer"
 author:
   - Patrick Roelli, Computational Biologist 2 - Computational Biology^[10x Genomics, patrick.roelli@10xgenomics.com ]
-  - Stefania Giacomello, Computational Biologist 2 - Computational Biology^[10x Genomics, stephen.williams@10xgenomics.com]
+  - Stefania Giacomello, Computational Biologist 2 - Computational Biology^[10x Genomics, stefania.giacomello@10xgenomics.com]
   - Stephen Williams, Senior Scientist - Computational Biology^[10x Genomics, stephen.williams@10xgenomics.com]
-date: 'Compiled: `r format(Sys.Date(), "%B %d, %Y")`'
+date: 'Last Compiled: `r format(Sys.Date(), "%B %d, %Y")`'
 output:
   html_notebook:
     code_folding: none
@@ -22,13 +22,16 @@ Welcome to the **SIB Days 2020 - virtual conference** Spatial Transcriptomics wo
 [![10x Home](https://github.com/stephenwilliams22/SIB_2020_Workshop/raw/master/images/10x%20homepage.png)](https://www.10xgenomics.com/)
 
 
-The purpose of this tutorial will be to walk users through some of the steps necessary to explore data produced by the 10x Genomics Visium Spatail Gene Expression Solution and the [Spaceranger pipeline](https://support.10xgenomics.com/spatial-gene-expression/software/pipelines/latest/what-is-space-ranger). We will investigate the datasets whith are all freely available from [10x Genomics](https://support.10xgenomics.com/spatial-gene-expression/datasets).
+The purpose of this tutorial will be to walk users through some of the steps necessary to explore data produced by the 10x Genomics Visium Spatial Gene Expression Solution and the [Spaceranger pipeline](https://support.10xgenomics.com/spatial-gene-expression/software/pipelines/latest/what-is-space-ranger). We will investigate the data sets  are all freely available from [10x Genomics](https://support.10xgenomics.com/spatial-gene-expression/datasets).
 
 [Seurat Tutorial](https://satijalab.org/seurat/v3.1/spatial_vignette.html)
 
 **Things to know about this workshop**
 
 1. All files that will be used can be found at: `/mnt/libs/shared_data/`
+
+[![Terminal](https://github.com/stephenwilliams22/SIB_2020_Workshop/raw/master/images/Terminal.png)]
+
 2. Getting started with R and Visium data outside of Seurat at: https://support.10xgenomics.com/spatial-gene-expression/software/pipelines/latest/rkit
 3. Reference genome for all samples is GRCh38/mm10
 4. All 10x software including [Spaceranger](https://support.10xgenomics.com/spatial-gene-expression/software/pipelines/latest/what-is-space-ranger), and [Loupe Browser](https://support.10xgenomics.com/spatial-gene-expression/software/visualization/latest/what-is-loupe-browser), can be downloaded from the [10x Support Site](https://support.10xgenomics.com/) 
@@ -59,11 +62,11 @@ Same data just internal to 10x
 breast_cancer <- Load10X_Spatial(data.dir = "/mnt/analysis/marsoc/pipestances/HWHTFDSXX/SPATIAL_RNA_COUNTER_PD/163086/HEAD/outs/", slice = "slice1")
 ```
 
-There are a bunch of datasets hoted by the Satija lab in the [Seurat Data Package](https://github.com/satijalab/seurat-data).
+There are a bunch of data sets hosted by the Satija lab in the [Seurat Data Package](https://github.com/satijalab/seurat-data).
 
 # **Results**
 ## QC
-Let's have a look at some basic QC information. Keep in mind that most seurat plots are ggplot object and can be manipulated as such.
+Let's have a look at some basic QC information. Keep in mind that most Seurat plots are ggplot object and can be manipulated as such.
 
 Counts = UMI
 Features = Genes
@@ -91,9 +94,9 @@ plot4 <- SpatialFeaturePlot(breast_cancer, features = "nFeature_Spatial") +
 plot1 + plot2 + plot3  + plot4 + plot_layout(nrow = 2, ncol = 2)
 ```
 
-## Normilization
+## Normalization
 
-Spaceranger does normiliaztion for clustering and DE but does not return that normalized matrix
+Spaceranger does normalization for clustering and DE but does not return that normalized matrix
 
 Pre-normalization 
 Raw UMI counts
@@ -156,7 +159,7 @@ plan()
 ```
 
 
-The defalut UMAP calculation is performed with the [R-based UWOT](https://cran.r-project.org/web/packages/uwot/index.html) library However, you can run UMAP in python via retuculate library and `umap-learn`. We have found that for smaller datasets (<= 10k cells/spots) UWOT is great. For much larger datasets (100k + cells/spots) `umap-learn` can be a faster option.
+The default UMAP calculation is performed with the [R-based UWOT](https://cran.r-project.org/web/packages/uwot/index.html) library However, you can run UMAP in python via reticulate library and `umap-learn`. We have found that for smaller data sets (<= 10k cells/spots) UWOT is great. For much larger data sets (100k + cells/spots) `umap-learn` can be a faster option.
 
 ```{r}
 breast_cancer <- RunPCA(breast_cancer, assay = "SCT", verbose = FALSE)
@@ -240,7 +243,7 @@ LinkedDimPlot(breast_cancer)
 
 ## Spatially variable features
 
-First we'll idetify differentially expressed genes. 
+First we'll identify deferentially expressed genes. 
 
 Parallelization helps here too let's make sure our plan is still intact
 
@@ -258,7 +261,7 @@ de_markers <- FindMarkers(breast_cancer, ident.1 = 4, ident.2 = 6)
 de_markers
 ```
 
-Identify the most upregulated and downregulated genes
+## Identify the most up-regulated and down-regulated genes
 ```{r}
 de_markers_up <- de_markers %>%
   tibble::rownames_to_column(var = "Gene") %>% 
@@ -270,12 +273,12 @@ de_markers_down <- de_markers %>%
 ```
 
 
-Most upregulated genes
+### Most up-regulated genes
 ```{r, fig.width=10, fig.height=10, warning=FALSE}
 SpatialFeaturePlot(object = breast_cancer, features = de_markers_up$Gene[1:10], alpha = c(0.1, 1), ncol = 3)
 ```
 
-Most downregulated genes
+### Most down-regulated genes
 ```{r, fig.width=10, fig.height=10, warning=FALSE}
 SpatialFeaturePlot(object = breast_cancer, features = de_markers_down$Gene[1:10], alpha = c(0.1, 1), ncol = 3)
 ```
@@ -285,7 +288,7 @@ what are the top variable features?
 VariableFeatures(breast_cancer)[1:10]
 ```
 
-what are the top de genes?
+what are the top DE genes?
 ```{r}
 rownames(de_markers)[1:10]
 ```
@@ -299,10 +302,10 @@ Some methods
 2. [Splotch](https://www.biorxiv.org/content/10.1101/757096v1)
 3. [SPARK](https://www.nature.com/articles/s41592-019-0701-7)
 4. [SpatialDE](https://www.nature.com/articles/nmeth.4636)
-  + We have found this implimenton not to be very effective. It's also not under active development
+  + We have found this implementation not to be very effective. It's also not under active development
 
 
-Using the top 100 variable genes find spatially enriched ones. Note that in the Seurat Spatial Tutorial they use 1000 genes. You can also use all genes but that will take a long time. Using a calucation of [Morans I](https://en.wikipedia.org/wiki/Moran%27s_I) can sometimes be a faster approach, especially if you are using parallization.
+Using the top 100 variable genes find spatially enriched ones. Note that in the Seurat Spatial Tutorial they use 1000 genes. You can also use all genes but that will take a long time. Using a calculation of [Morans I](https://en.wikipedia.org/wiki/Moran%27s_I) can sometimes be a faster approach, especially if you are using parallization.
 
 
 ```{r}
@@ -323,7 +326,7 @@ top.features_trendseq <- head(SpatiallyVariableFeatures(breast_cancer, selection
 SpatialFeaturePlot(breast_cancer, features = top.features_trendseq, ncol = 4, alpha = c(0.1, 1))
 ```
 
-Moran's I implamentation. For other spatial data types the x.cuts and y.cuts determins the grid that is laied over the tissue in the capture area. Here we'll remove those
+Moran's I implementation. For other spatial data types the x.cuts and y.cuts determines the grid that is laid over the tissue in the capture area. Here we'll remove those
 ```{r}
 breast_cancer <- FindSpatiallyVariableFeatures(breast_cancer, 
                                                assay = "SCT", 
@@ -364,9 +367,9 @@ ggplot(spatially_variable_genes, aes(x=moransi.spatially.variable.rank,y=markvar
   theme_bw()
 ```
 
-# Cancer annotations
+## Cancer annotations
 
-Where are these genes being expressed relative to pathogist annotation?
+Where are these genes being expressed relative to pathologist annotation?
 
 ```{r, fig.height=8, fig.width=8}
 ca <- readbitmap::read.bitmap("images/Breast Cancer Path.png")
@@ -376,7 +379,7 @@ plot(0:1,0:1,type="n",ann=FALSE,axes=FALSE)
 rasterImage(ca,0,0,1,1)
 ```
 
-Looks like the  Matrix Gla protein ( _MGP_ ) gene is enriched in Ductal Carcinoma _In Situ_. Not a lot is known about _MGP_ in the context of cancer but it looks like it could be an interesing novel gene to investiage with regard to Ductal Carcinoma _In Situ_.
+Looks like the  Matrix Gla protein ( _MGP_ ) gene is enriched in Ductal Carcinoma _In Situ_. Not a lot is known about _MGP_ in the context of cancer but it looks like it could be an interesting novel gene to investigate with regard to Ductal Carcinoma _In Situ_.
 
 ```{r, warning=FALSE}
 SpatialFeaturePlot(object = breast_cancer, features = "MGP", alpha = c(0.1, 1), ncol = 3)
