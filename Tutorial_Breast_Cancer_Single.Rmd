@@ -15,12 +15,11 @@ output:
     toc_float: yes
 ---
 
+[![10x Home](https://github.com/stephenwilliams22/SIB_2020_Workshop/raw/master/images/10x%20homepage.png)](https://www.10xgenomics.com/)
+
 # **Introduction**
 
 Welcome to the **SIB Days 2020 - virtual conference** Spatial Transcriptomics workshop by 10x genomics!
-
-[![10x Home](https://github.com/stephenwilliams22/SIB_2020_Workshop/raw/master/images/10x%20homepage.png)](https://www.10xgenomics.com/)
-
 
 The purpose of this tutorial will be to walk users through some of the steps necessary to explore data produced by the 10x Genomics Visium Spatial Gene Expression Solution and the [Spaceranger pipeline](https://support.10xgenomics.com/spatial-gene-expression/software/pipelines/latest/what-is-space-ranger). We will investigate the data sets  are all freely available from [10x Genomics](https://support.10xgenomics.com/spatial-gene-expression/datasets).
 
@@ -70,7 +69,7 @@ Let's have a look at some basic QC information. Keep in mind that most Seurat pl
 
 Counts = UMI
 Features = Genes
-```{r, fig.width=10,fig.height=10, warning=FALSE}
+```{r, fig.width=10,fig.height=8, warning=FALSE}
 plot1 <- VlnPlot(breast_cancer, features = "nCount_Spatial", pt.size = 0.1) + 
   ggtitle("UMI") +
   theme(axis.text.x = element_blank(), 
@@ -131,16 +130,16 @@ The default parameters in Seurat emphasize the visualization of molecular data. 
 
 
 ```{r, fig.width=10, warning=FALSE}
-p1 <- SpatialFeaturePlot(breast_cancer, features = "TTR", pt.size.factor = 1)+ 
+p1 <- SpatialFeaturePlot(breast_cancer, features = "IGFBP5", pt.size.factor = 1)+ 
   theme(legend.position = "right") +
   ggtitle("Actual Spot Size")
-p2 <- SpatialFeaturePlot(breast_cancer, features = "TTR")+ 
+p2 <- SpatialFeaturePlot(breast_cancer, features = "IGFBP5")+ 
   theme(legend.position = "right") +
   ggtitle("Scaled Spot Size")
 p1 + p2
 ```
 
-Dimensionality reduction, clustering, and visualization
+### Dimensionality reduction, clustering, and visualization
 
 We can then proceed to run dimensionality reduction and clustering on the RNA expression data, using the same workflow as we use for scRNA-seq analysis.
 
@@ -170,7 +169,7 @@ breast_cancer <- RunUMAP(breast_cancer, reduction = "pca", dims = 1:30)
 
 Now let's have a look at the clustering
 
-```{r, fig.width=12}
+```{r, fig.width=8}
 DimPlot(breast_cancer, reduction = "umap", label = FALSE,) +
   labs(color = "Cluster")
 ```
@@ -247,7 +246,7 @@ First we'll identify deferentially expressed genes.
 
 Parallelization helps here too let's make sure our plan is still intact
 
-```{r}
+```{r, eval=FALE, include=TRUE}
 plan()
 ```
 `- call: plan("multiprocess", workers = 4)` indicates that it is
@@ -256,7 +255,7 @@ Looks like we have some very DE genes for clusters 4 and 11
 
 
 clarify what ident.1 = 4, ident.2 = 6 are for
-```{r, fig.width=10, warning=FALSE}
+```{r, fig.width=10, warning=FALSE, message=FALSE}
 de_markers <- FindMarkers(breast_cancer, ident.1 = 4, ident.2 = 6)
 de_markers
 ```
