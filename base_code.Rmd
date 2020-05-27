@@ -1,0 +1,315 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+images_cl <- list()
+
+for (i in 1:length(lenas)) {
+  images_cl[[i]] <- readbitmap::read.bitmap(paste(get_spatial_path(lenas[i]), "/outs/spatial/tissue_lowres_image.png", sep = ""))
+}
+```
+
+
+```{r}
+height <- list()
+
+for (i in 1:length(lenas)) {
+ height[[i]] <-  data.frame(height = nrow(images_cl[[i]]))
+}
+
+height <- bind_rows(height)
+
+width <- list()
+
+for (i in 1:length(lenas)) {
+ width[[i]] <- data.frame(width = ncol(images_cl[[i]]))
+}
+
+width <- bind_rows(width)
+```
+
+
+###Color from pipeline
+```{r}
+grobs <- list()
+
+for (i in 1:length(lenas)) {
+  grobs[[i]] <- grid::rasterGrob(images_cl[[i]], width=unit(1,"npc"), height=unit(1,"npc"))
+}
+
+images_tibble <- tibble(lena=lenas, grob=grobs)
+images_tibble$lena <- factor(images_tibble$lena)
+images_tibble$height <- height$height
+images_tibble$width <- width$width
+images_tibble
+```
+
+```{r}
+scales <- list()
+
+for (i in 1:length(lenas)) {
+ path_scales <- paste(svenLib::get_spatial_path(lenas[i]), "/outs/spatial/scalefactors_json.json", sep = "")
+ scales[[i]] <- rjson::fromJSON(file = path_scales)
+}
+```
+
+### Clusters and tsne
+```{r}
+clusters <- list()
+for (i in 1:length(lenas)) {
+  clusters[[i]] <- read.csv(paste(svenLib::get_spatial_path(lenas[i]),"/outs/analysis_csv/clustering/graphclust/clusters.csv", sep = ""))
+}
+
+
+tsne <- list()
+
+for (i in 1:length(lenas)) {
+   tsne[[i]] <- read.csv(paste(svenLib::get_spatial_path(lenas[i]),"/outs/analysis_csv/tsne/2_components/projection.csv",sep = ""), header = T)
+}
+
+umap <- list()
+
+for (i in 1:length(lenas)) {
+   umap[[i]] <- read.csv(paste(svenLib::get_spatial_path(lenas[i]),"/outs/analysis_csv/umap/2_components/projection.csv",sep = ""), header = T)
+}
+
+umap[[1]]
+```
+
+
+### Combine clusters, tsne, and tissue info for easy plotting
+```{r}
+bcs <- list()
+
+for (i in 1:length(lenas)) {
+   if (file.exists(paste(get_spatial_path(lenas[i]),"/outs/spatial/tissue_positions_list.txt", sep = ""))) {
+  bcs[[i]] <- read.csv(paste(get_spatial_path(lenas[i]), "/outs/spatial/tissue_positions_list.txt", sep = ""),
+                 col.names=c("barcode","tissue","row","col","imagerow","imagecol"), header = F)
+        } else {
+  bcs[[i]] <- read.csv(paste(get_spatial_path(lenas[i]), "/outs/spatial/tissue_positions_list.csv", sep = ""),
+                 col.names=c( "barcode","tissue","row","col","imagerow","imagecol"), header = F)
+        }
+   bcs[[i]]$imagerow_scaled <- bcs[[i]]$imagerow * scales[[i]]$tissue_lowres_scalef    # scale tissue coordinates for lowres image
+   bcs[[i]]$imagecol_scaled <- bcs[[i]]$imagecol * scales[[i]]$tissue_lowres_scalef
+   bcs[[i]]$imagerow_scaled_round <- round(bcs[[i]]$imagerow * scales[[i]]$tissue_lowres_scalef) # Rounded scales
+   bcs[[i]]$imagecol_scaled_round <- round(bcs[[i]]$imagecol * scales[[i]]$tissue_lowres_scalef)
+   bcs[[i]]$tissue <- as.factor(bcs[[i]]$tissue)
+   bcs[[i]] <- merge(bcs[[i]], clusters[[i]], by.x = "barcode", by.y = "Barcode", all = TRUE)
+   bcs[[i]] <- merge(bcs[[i]], tsne[[i]], by.x = "barcode", by.y = "Barcode", all = TRUE)
+   bcs[[i]] <- merge(bcs[[i]], umap[[i]], by.x = "barcode", by.y = "Barcode", all = TRUE)
+   bcs[[i]]$height <- height$height[i]
+   bcs[[i]]$width <- width$width[i]
+}
+
+names(bcs) <- lenas
+```
+
+
+```{r}
+read_matrix <- function(sid) {
+  Matrix::t(Seurat::Read10X_h5(paste(get_spatial_path(sid = sid), "/outs/raw_feature_bc_matrix.h5", sep = "")))
+}
+
+matrix <- map(.x = lenas, .f = read_matrix)
+names(matrix) <- lenas
+matrix[[1]]
+```
+
+
+```{r}
+umi_sum <- list() 
+
+for (i in 1:length(lenas)) {
+  umi_sum[[i]] <- data.frame(barcode =  row.names(matrix[[i]]),
+                             sum_umi = Matrix::rowSums(matrix[[i]]))
+  
+}
+names(umi_sum) <- lenas
+
+umi_sum <- bind_rows(umi_sum, .id = "lena")
+umi_sum
+
+
+gene_sum <- list() 
+
+for (i in 1:length(lenas)) {
+  gene_sum[[i]] <- data.frame(barcode =  row.names(matrix[[i]]),
+                             sum_gene = Matrix::rowSums(matrix[[i]] != 0))
+  
+}
+names(gene_sum) <- lenas
+
+gene_sum <- bind_rows(gene_sum, .id = "lena")
+gene_sum
+
+# If you need to look at the correlation of gene expression between samples
+gene_umi_sum <- list() 
+
+for (i in 1:length(lenas)) {
+  gene_umi_sum[[i]] <- data.frame(gene =  colnames(matrix[[i]]),
+                             gene_umi_sum = Matrix::colSums(matrix[[i]]))
+  
+}
+names(gene_umi_sum) <- lenas
+
+gene_umi_sum <- bind_rows(gene_umi_sum, .id = "lena")
+gene_umi_sum
+```
+
+```{r}
+bcs_merge <- bind_rows(bcs, .id = "lena")
+bcs_merge <- merge(bcs_merge,umi_sum, by = c("barcode", "lena"))
+bcs_merge <- merge(bcs_merge,gene_sum, by = c("barcode", "lena"))
+```
+
+Define our color palette for plotting
+```{r}
+myPalette <- colorRampPalette(rev(brewer.pal(11, "Spectral")))
+```
+
+```{r, fig.width = 18, fig.height = 9}
+plots <- list()
+
+for (i in 1:length(lenas)) {
+
+plots[[i]] <- bcs_merge %>% 
+  filter(lena ==lenas[i]) %>% 
+  filter(tissue =="1") %>% 
+      ggplot(aes(x=imagecol_scaled,y=imagerow_scaled,fill=sum_umi)) +
+                geom_spatial(data=images_tibble[i,], aes(grob=grob), x=0.5, y=0.5)+
+                geom_point(shape = 21, colour = "black", size = 2, stroke = 0.1)+
+                coord_cartesian(expand=FALSE)+
+                scale_fill_gradientn(colours = myPalette(100))+
+                #facet_wrap(~lena)+
+                xlim(0,max(bcs_merge %>% 
+                            filter(lena ==lenas[i]) %>% 
+                            dplyr::select(width)))+
+                ylim(max(bcs_merge %>% 
+                            filter(lena ==lenas[i]) %>% 
+                            dplyr::select(height)),0)+
+                xlab("") +
+                ylab("") +
+                ggtitle(paste(lenas[i],": ", sample_type[i], sep = ""))+
+                labs(fill = "UMI")+
+                theme_set(theme_bw(base_size = 10))+
+                theme(panel.grid.major = element_blank(), 
+                        panel.grid.minor = element_blank(),
+                        panel.background = element_blank(), 
+                        axis.line = element_line(colour = "black"),
+                        axis.text = element_blank())
+}
+
+patchwork::wrap_plots(plots)
+```
+
+```{r, fig.width = 18, fig.height = 9}
+plots <- list()
+
+for (i in 1:length(lenas)) {
+
+plots[[i]] <- bcs_merge %>% 
+  filter(lena ==lenas[i]) %>% 
+  filter(tissue =="1") %>% 
+      ggplot(aes(x=imagecol_scaled,y=imagerow_scaled,fill=sum_gene)) +
+                geom_spatial(data=images_tibble[i,], aes(grob=grob), x=0.5, y=0.5)+
+                geom_point(shape = 21, colour = "black", size = 2, stroke = 0.1)+
+                coord_cartesian(expand=FALSE)+
+                scale_fill_gradientn(colours = myPalette(100))+
+                #facet_wrap(~lena)+
+                xlim(0,max(bcs_merge %>% 
+                            filter(lena ==lenas[i]) %>% 
+                            dplyr::select(width)))+
+                ylim(max(bcs_merge %>% 
+                            filter(lena ==lenas[i]) %>% 
+                            dplyr::select(height)),0)+
+                xlab("") +
+                ylab("") +
+                ggtitle(paste(lenas[i],": ", sample_type[i], sep = ""))+
+                labs(fill = "Genes")+
+                theme_set(theme_bw(base_size = 10))+
+                theme(panel.grid.major = element_blank(), 
+                        panel.grid.minor = element_blank(),
+                        panel.background = element_blank(), 
+                        axis.line = element_line(colour = "black"),
+                        axis.text = element_blank())
+}
+
+patchwork::wrap_plots(plots)
+```
+
+```{r, fig.width = 18, fig.height = 9}
+plots <- list()
+
+for (i in 1:length(lenas)) {
+
+plots[[i]] <- bcs_merge %>% 
+  filter(lena ==lenas[i]) %>%
+  add_column(GAPDH = matrix[[i]][,"GAPDH"]) %>% 
+      ggplot(aes(x=imagecol_scaled,y=imagerow_scaled,fill=GAPDH)) +
+                geom_spatial(data=images_tibble[i,], aes(grob=grob), x=0.5, y=0.5)+
+                geom_point(shape = 21, colour = "black", size = 2, stroke = 0.1)+
+                coord_cartesian(expand=FALSE)+
+                scale_fill_gradientn(colours = myPalette(100))+
+                #facet_wrap(~lena)+
+                xlim(0,max(bcs_merge %>% 
+                            filter(lena ==lenas[i]) %>% 
+                            dplyr::select(width)))+
+                ylim(max(bcs_merge %>% 
+                            filter(lena ==lenas[i]) %>% 
+                            dplyr::select(height)),0)+
+                xlab("") +
+                ylab("") +
+                ggtitle(paste(lenas[i],": ", sample_type[i], sep = ""))+
+                labs(fill = "GAPDH UMI")+
+                theme_set(theme_bw(base_size = 10))+
+                theme(panel.grid.major = element_blank(), 
+                        panel.grid.minor = element_blank(),
+                        panel.background = element_blank(), 
+                        axis.line = element_line(colour = "black"),
+                        axis.text = element_blank())
+}
+
+patchwork::wrap_plots(plots)
+```
+
+
+```{r, fig.width = 18, fig.height = 9}
+plots <- list()
+
+for (i in 1:length(lenas)) {
+
+plots[[i]] <- bcs_merge %>% 
+  filter(lena ==lenas[i]) %>%
+  filter(tissue == "1") %>% 
+  na.omit() %>% 
+      ggplot(aes(x=imagecol_scaled,y=imagerow_scaled,fill=factor(Cluster))) +
+                geom_spatial(data=images_tibble[i,], aes(grob=grob), x=0.5, y=0.5)+
+                geom_point(shape = 21, colour = "black", size = 2, stroke = 0.1)+
+                coord_cartesian(expand=FALSE)+
+                scale_fill_manual(values = c("#b2df8a","#e41a1c","#377eb8","#4daf4a","#ff7f00","gold", 
+                                             "#a65628", "#999999", "black", "white", "purple", "brown"))+
+                xlim(0,max(bcs_merge %>% 
+                            filter(lena ==lenas[i]) %>% 
+                            dplyr::select(width)))+
+                ylim(max(bcs_merge %>% 
+                            filter(lena ==lenas[i]) %>% 
+                            dplyr::select(height)),0)+
+                xlab("") +
+                ylab("") +
+                ggtitle(paste(lenas[i],": ", sample_type[i], sep = ""))+
+                labs(fill = "Cluster")+
+                guides(fill = guide_legend(override.aes = list(size=3)))+
+                theme_set(theme_bw(base_size = 10))+
+                theme(panel.grid.major = element_blank(), 
+                        panel.grid.minor = element_blank(),
+                        panel.background = element_blank(), 
+                        axis.line = element_line(colour = "black"),
+                        axis.text = element_blank())
+  
+}
+patchwork::wrap_plots(plots)
+```
+
+
