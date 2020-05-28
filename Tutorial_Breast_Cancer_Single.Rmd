@@ -383,3 +383,46 @@ Looks like the  Matrix Gla protein ( _MGP_ ) gene is enriched in Ductal Carcinom
 ```{r, warning=FALSE}
 SpatialFeaturePlot(object = breast_cancer, features = "MGP", alpha = c(0.1, 1), ncol = 3)
 ```
+
+# Multiple Sections
+
+for workshop
+```{r eval=FALSE}
+breast_cancer_2 <- Load10X_Spatial(data.dir = "/mnt/libs/shared_data/human_breast_cancer_2/outs/",
+                filename = "V1_Breast_Cancer_Block_A_Section_2_filtered_feature_bc_matrix.h5")
+```
+for 10x
+```{r}
+breast_cancer_2 <- Load10X_Spatial(data.dir = "/mnt/analysis/marsoc/pipestances/HWHTFDSXX/SPATIAL_RNA_COUNTER_PD/163087/HEAD/outs/", 
+                                   slice = "slice2")
+```
+
+```{r}
+breast_cancer_merged <- merge(breast_cancer, breast_cancer_2)
+```
+
+Counts = UMI
+Features = Genes
+```{r, fig.width=10,fig.height=10, warning=FALSE}
+plot1 <- SpatialFeaturePlot(breast_cancer_merged, features = "nCount_Spatial") + 
+  theme(legend.position = "right")
+
+plot2 <- SpatialFeaturePlot(breast_cancer_merged, features = "nFeature_Spatial") +
+  theme(legend.position = "right")
+
+plot1 + plot2 + plot_layout(nrow = 2)
+```
+
+## Normalize merged data
+
+This will take ~3min
+
+Default assay will now be set to SCT
+```{r, warning=FALSE}
+breast_cancer_merged <- SCTransform(breast_cancer_merged, assay = "Spatial", verbose = TRUE)
+```
+
+```{r, fig.width=10, warning=FALSE}
+SpatialFeaturePlot(breast_cancer_merged, features = c("ERBB2", "CD8A"))
+```
+
