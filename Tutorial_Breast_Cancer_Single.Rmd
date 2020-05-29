@@ -112,8 +112,9 @@ Don't worry about `reachediteration limit` warnings. See https://github.com/Chri
 
 Default assay will now be set to SCT
 ```{r, warning=FALSE}
-breast_cancer <- SCTransform(breast_cancer, assay = "Spatial", verbose = TRUE)
+breast_cancer <- SCTransform(breast_cancer, assay = "Spatial", verbose = FALSE)
 ```
+
 
 ```{r, fig.width=10, warning=FALSE}
 SpatialFeaturePlot(breast_cancer, features = c("ERBB2", "CD8A"))
@@ -276,15 +277,15 @@ Parallelization helps here too let's make sure our plan is still intact
 ```{r, eval=FALE, include=TRUE}
 plan()
 ```
-`- call: plan("multiprocess", workers = 4)` indicates that it is
-
-Looks like we have some very DE genes for clusters 4 and 11
 
 
-clarify what ident.1 = 4, ident.2 = 6 are for
-```{r, fig.width=10, warning=FALSE, message=FALSE}
-de_markers <- FindMarkers(breast_cancer, ident.1 = 4, ident.2 = 6)
-de_markers
+Let's find all the markers for every cluster
+```{r}
+de_markers <- FindAllMarkers(breast_cancer, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+
+de_markers %>%
+  group_by(cluster) %>% 
+  top_n(n = 2, wt = avg_logFC)
 ```
 
 ## Identify the most up-regulated and down-regulated genes
@@ -298,6 +299,13 @@ de_markers_down <- de_markers %>%
   arrange(avg_logFC)
 ```
 
+```{r}
+de_markers_up
+```
+
+```{r}
+de_markers_down
+```
 
 ### Most up-regulated genes
 ```{r, fig.width=10, fig.height=10, warning=FALSE}
@@ -454,11 +462,12 @@ breast_cancer_merged <- SCTransform(breast_cancer_merged, assay = "Spatial", ver
 SpatialFeaturePlot(breast_cancer_merged, features = c("ERBB2", "CD8A"))
 ```
 
-# Single cell/nuclei ingegration
+# Single cell/nuclei integration
 
 Here we have a preprocessed Seurat object with 10k nuclei annotated from a breast cancer sample. Don't bother too much with the details of how this data was generated they don't particularly matter for our purposes. 
 
 ## Load the Seurat object
+
 10x infrastructure
 ```{r}
 bc_snRNA <- readRDS("/mnt/home/stephen.williams/yard/Odin/SIB_2020_Workshop/bc_snRNA.rds")
@@ -474,6 +483,145 @@ bc_snRNA <- readRDS("/mnt/libs/shared_data/bc_snRNA.rds")
 bc_snRNA
 ```
 
+It's always a good idea to rerun normalization to make sure your data is in the correct format before moving forward with integration. We've already preprocessed this dataset.
+
+```
+bc_snRNA <- SCTransform(bc_snRNA, ncells = 3000, verbose = FALSE) %>% 
+  RunPCA(verbose = FALSE) %>% 
+  RunUMAP(dims = 1:30)
+```
+
+Class
+```{r, fig.width=10}
+DimPlot(bc_snRNA, group.by = "ident", label = FALSE)
+```
+Subclass
 ```{r, fig.width=10}
 DimPlot(bc_snRNA, group.by = "subclass", label = FALSE)
+```
+## snRNA Differentially Expressed Genes
+
+What genes define some cell types?
+```
+# Find markers for every cluster compared to all remaining cells, report only the positive ones
+# This takes a bit of time so we'll skip it and move on to specific cell types
+de_markers_snRNA <- FindAllMarkers(bc_snRNA, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+de_markers_snRNA %>% 
+  group_by(cluster) %>% 
+  top_n(n = 2, wt = avg_logFC)
+```
+
+Find markers that define tumors
+
+```{r}
+de_markers_tumor <- FindMarkers(bc_snRNA, ident.1 = "Likely tumor cells", logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE)
+de_markers_tumor %>%
+  tibble::rownames_to_column("gene") %>% 
+  arrange(-power)
+```
+
+Find markers that define tumors
+
+```{r}
+de_markers_tcell <- FindMarkers(bc_snRNA, ident.1 = "T cells", logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE)
+de_markers_tcell %>%
+  tibble::rownames_to_column("gene") %>% 
+  arrange(-power)
+```
+
+Find markers that define stem cells
+
+```{r}
+de_markers_stemcell <- FindMarkers(bc_snRNA, ident.1 = "CD49f-hi MaSCs", logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE)
+de_markers_stemcell %>%
+  tibble::rownames_to_column("gene") %>% 
+  arrange(-power)
+```
+
+
+## Identify and Transfer Anchors
+
+```{r}
+anchors <- FindTransferAnchors(reference = bc_snRNA, query = breast_cancer,normalization.method = "SCT")
+
+predictions.assay <- TransferData(anchorset = anchors, refdata = bc_snRNA$subclass, prediction.assay = TRUE, 
+    weight.reduction = breast_cancer[["pca"]])
+
+breast_cancer[["predictions"]] <- predictions.assay
+
+DefaultAssay(breast_cancer) <- "predictions"
+```
+
+Let's have a look at our annotations again.
+
+```{r, fig.height=8, fig.width=8}
+ca <- readbitmap::read.bitmap("images/Breast Cancer Path.png")
+# in the tutorial
+# ca <- readbitmap::read.bitmap('/mnt/libs/shared_data/human_breast_cancer_1/images/Breast_Cancer_Path.png')
+plot(0:1,0:1,type="n",ann=FALSE,axes=FALSE)
+rasterImage(ca,0,0,1,1)
+```
+
+
+## Immune Microenvironment
+### T cell subtypes
+
+What about the immune microenvironment? 
+
+Ducal Carcinoma _in situ_ is depleted of T-cells
+```{r, fig.width=15, warning=FALSE}
+(SpatialFeaturePlot(breast_cancer, 
+                   features = c("T cells-0"), 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE) |
+SpatialFeaturePlot(breast_cancer, 
+                   features = c("T cells-1"), 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)) /
+(SpatialFeaturePlot(breast_cancer, 
+                   features = c("T cells-2"), 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE) |
+SpatialFeaturePlot(breast_cancer, 
+                   features = c("T cells-5"), 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE))
+```
+
+### B cell subtypes
+
+B cells are enriched in the fibrous tissue outside the tumor
+```{r, fig.width=15, warning=FALSE}
+SpatialFeaturePlot(breast_cancer, 
+                   features = c("B cells"), 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)
+```
+
+There seem to be some ductal cells but have a look at our score. Are we confident in this assertion? 
+```{r, fig.width=10, warning=FALSE}
+SpatialFeaturePlot(breast_cancer, 
+                   features = c("Ductal cells"), 
+                   pt.size.factor = 1.5,  crop = TRUE)
+```
+## Tumor Subtypes
+
+It looks like the ducal carcinoma _in situ_ is enriched for tumor subtypes 8, 10, and 12 but not 3. 
+```{r, fig.width=15, warning=FALSE}
+(SpatialFeaturePlot(breast_cancer, 
+                   features = c("Tumor cells-3"), 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE) |
+SpatialFeaturePlot(breast_cancer, 
+                   features = c("Tumor cells-8"), 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)) /
+(SpatialFeaturePlot(breast_cancer, 
+                   features = c("Tumor cells-10"), 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE) |
+SpatialFeaturePlot(breast_cancer, 
+                   features = c("Tumor cells-12"), 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE))
+```
+
+Like the Ductal Cells, we might not be as confident in the Tumor Stem Cells but this might make sense considering the 10x snRNA dataset and the Visium dataset are from different individuals.
+```{r, fig.width=10, warning=FALSE}
+SpatialFeaturePlot(breast_cancer, 
+                   features = c("CD49f-hi MaSCs"), 
+                   pt.size.factor = 1.5,crop = TRUE) + 
+plot_annotation(
+  title = 'Tumor Stem Cells')
 ```
