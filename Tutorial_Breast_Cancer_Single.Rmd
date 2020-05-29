@@ -1,5 +1,5 @@
 ---
-title: "SIB Days 2020 - Virtual Conference - June 4, 2020"
+title: "SIB Days 2020 - Virtual Conference - June 8, 2020"
 subtitle: "Dataset: Breast Cancer"
 author:
   - Patrick Roelli, Computational Biologist 2 - Computational Biology^[10x Genomics, patrick.roelli@10xgenomics.com ]
@@ -33,7 +33,8 @@ The purpose of this tutorial will be to walk users through some of the steps nec
 
 2. Getting started with R and Visium data outside of Seurat at: https://support.10xgenomics.com/spatial-gene-expression/software/pipelines/latest/rkit
 3. Reference genome for all samples is GRCh38/mm10
-4. All 10x software including [Spaceranger](https://support.10xgenomics.com/spatial-gene-expression/software/pipelines/latest/what-is-space-ranger), and [Loupe Browser](https://support.10xgenomics.com/spatial-gene-expression/software/visualization/latest/what-is-loupe-browser), can be downloaded from the [10x Support Site](https://support.10xgenomics.com/) 
+4. All 10x software including [Spaceranger](https://support.10xgenomics.com/spatial-gene-expression/software/pipelines/latest/what-is-space-ranger), and [Loupe Browser](https://support.10xgenomics.com/spatial-gene-expression/software/visualization/latest/what-is-loupe-browser), can be downloaded from the [10x Support Site](https://support.10xgenomics.com/)
+5. Most Seurat figures can be controlled with patchwork because they are fundamentally ggplot objects. Some really nice examples can be found on the [Patchwork GitHub](https://patchwork.data-imaginist.com/articles/guides/layout.html)
 
 
 # **Exploring Visium Data with Seurat**
@@ -235,6 +236,32 @@ plot1 + plot2
 ```
 
 
+Now let's take a look at at a gene of interest with violin plots but also in image space.
+```{r, fig.width=8, fig.height=8}
+p1 <- VlnPlot(breast_cancer, features = "IGFBP5", pt.size = 0.1) + 
+  ggtitle("IGFBP5") +
+  scale_fill_manual(values = c("#b2df8a","#e41a1c","#377eb8","#4daf4a","#ff7f00","gold", 
+                               "#a65628", "#999999", "black", "pink", "purple", "brown",
+                               "grey", "yellow", "green"))+
+  theme(axis.title.x = element_blank(), 
+        legend.position = "right") +
+  NoLegend() +
+  stat_summary(fun=mean, geom="point", shape=23, size=4, color="red")
+
+p2 <- SpatialFeaturePlot(breast_cancer, features = "IGFBP5")+ 
+  theme(legend.position = "right")
+
+p3 <- SpatialDimPlot(breast_cancer, label = TRUE, label.size = 3) +
+  labs(fill = "Cluster")+ 
+  scale_fill_manual(values = c("#b2df8a","#e41a1c","#377eb8","#4daf4a","#ff7f00","gold", 
+                               "#a65628", "#999999", "black", "pink", "purple", "brown",
+                               "grey", "yellow", "green")) +
+  NoLegend()
+
+row1 <- p2 + p3 + plot_layout(nrow = 1)
+row1 + p1+ plot_layout(nrow = 2, widths = c(0.5, 0.5))
+```
+
 We can also look at these data interactively
 ```{r eval=FALSE, include=TRUE}
 LinkedDimPlot(breast_cancer)
@@ -297,6 +324,7 @@ rownames(de_markers)[1:10]
 So what about spatial enrichment? 
 
 Some methods
+
 1. [Trendsceek](https://www.nature.com/articles/nmeth.4634)
 2. [Splotch](https://www.biorxiv.org/content/10.1101/757096v1)
 3. [SPARK](https://www.nature.com/articles/s41592-019-0701-7)
@@ -426,3 +454,26 @@ breast_cancer_merged <- SCTransform(breast_cancer_merged, assay = "Spatial", ver
 SpatialFeaturePlot(breast_cancer_merged, features = c("ERBB2", "CD8A"))
 ```
 
+# Single cell/nuclei ingegration
+
+Here we have a preprocessed Seurat object with 10k nuclei annotated from a breast cancer sample. Don't bother too much with the details of how this data was generated they don't particularly matter for our purposes. 
+
+## Load the Seurat object
+10x infrastructure
+```{r}
+bc_snRNA <- readRDS("/mnt/home/stephen.williams/yard/Odin/SIB_2020_Workshop/bc_snRNA.rds")
+```
+
+For the workshop
+```{r eval=FALSE, include=TRUE}
+bc_snRNA <- readRDS("/mnt/libs/shared_data/bc_snRNA.rds")
+```
+
+
+```{r}
+bc_snRNA
+```
+
+```{r, fig.width=10}
+DimPlot(bc_snRNA, group.by = "subclass", label = FALSE)
+```
