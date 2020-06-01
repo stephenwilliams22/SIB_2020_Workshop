@@ -2,9 +2,9 @@
 title: "SIB Days 2020 - Virtual Conference - June 8, 2020"
 subtitle: "Dataset: Breast Cancer"
 author:
-  - Patrick Roelli, Computational Biologist 2 - Computational Biology^[10x Genomics, patrick.roelli@10xgenomics.com ]
-  - Stefania Giacomello, Computational Biologist 2 - Computational Biology^[10x Genomics, stefania.giacomello@10xgenomics.com]
-  - Stephen Williams, Senior Scientist - Computational Biology^[10x Genomics, stephen.williams@10xgenomics.com]
+  - Dr. Patrick Roelli, Computational Biologist 2 - Computational Biology^[10x Genomics, patrick.roelli@10xgenomics.com ]
+  - Dr. Stefania Giacomello, Computational Biologist 2 - Computational Biology^[10x Genomics, stefania.giacomello@10xgenomics.com]
+  - Dr. Stephen Williams, Senior Scientist - Computational Biology^[10x Genomics, stephen.williams@10xgenomics.com]
 date: 'Last Compiled: `r format(Sys.Date(), "%B %d, %Y")`'
 output:
   html_notebook:
@@ -19,11 +19,11 @@ output:
 
 # **Introduction**
 
-Welcome to the **SIB Days 2020 - virtual conference** Spatial Transcriptomics workshop by 10x genomics!
+Welcome to the **SIB Days 2020 - virtual conference** Visium Spatial Transcriptomics workshop by 10x Genomics!
 
 The purpose of this tutorial will be to walk users through some of the steps necessary to explore data produced by the 10x Genomics Visium Spatial Gene Expression Solution and the [Spaceranger pipeline](https://support.10xgenomics.com/spatial-gene-expression/software/pipelines/latest/what-is-space-ranger). We will investigate the data sets  are all freely available from [10x Genomics](https://support.10xgenomics.com/spatial-gene-expression/datasets).
 
-[Seurat Tutorial](https://satijalab.org/seurat/v3.1/spatial_vignette.html)
+This tutorial is largely an extension off of the primary [Seurat Visium Tutorial](https://satijalab.org/seurat/v3.1/spatial_vignette.html)
 
 **Things to know about this workshop**
 
@@ -35,6 +35,7 @@ The purpose of this tutorial will be to walk users through some of the steps nec
 3. Reference genome for all samples is GRCh38/mm10
 4. All 10x software including [Spaceranger](https://support.10xgenomics.com/spatial-gene-expression/software/pipelines/latest/what-is-space-ranger), and [Loupe Browser](https://support.10xgenomics.com/spatial-gene-expression/software/visualization/latest/what-is-loupe-browser), can be downloaded from the [10x Support Site](https://support.10xgenomics.com/)
 5. Most Seurat figures can be controlled with patchwork because they are fundamentally ggplot objects. Some really nice examples can be found on the [Patchwork GitHub](https://patchwork.data-imaginist.com/articles/guides/layout.html)
+6. This tutoial is _NOT_ officially supported by 10x genomics. It is simply for informative purposes and to provide the growndwork for individuals to get started with 3rd party analysis tools.
 
 
 # **Exploring Visium Data with Seurat**
@@ -111,7 +112,7 @@ SpatialFeaturePlot(breast_cancer, features = c("ERBB2", "CD8A"))
 Don't worry about `reachediteration limit` warnings. See https://github.com/ChristophH/sctransform/issues/25 for discussion
 
 Default assay will now be set to SCT
-```{r, warning=FALSE}
+```{r warning=FALSE}
 breast_cancer <- SCTransform(breast_cancer, assay = "Spatial", verbose = FALSE)
 ```
 
@@ -145,20 +146,7 @@ p1 + p2
 
 We can then proceed to run dimensionality reduction and clustering on the RNA expression data, using the same workflow as we use for scRNA-seq analysis.
 
-Some of these processes can be parallized
-
-```{r eval=FALSE, include=TRUE}
-library(future)
-# check the current active plan
-plan()
-```
-
-```{r eval=FALSE, include=TRUE}
-# change the current plan to access parallelization
-plan("multiprocess", workers = 4)
-plan()
-```
-
+Some of these processes can be parallized please see [Parallelization in Seurat](https://satijalab.org/seurat/v3.1/future_vignette.html) for more info
 
 The default UMAP calculation is performed with the [R-based UWOT](https://cran.r-project.org/web/packages/uwot/index.html) library However, you can run UMAP in python via reticulate library and `umap-learn`. We have found that for smaller data sets (<= 10k cells/spots) UWOT is great. For much larger data sets (100k + cells/spots) `umap-learn` can be a faster option.
 
@@ -270,14 +258,7 @@ LinkedDimPlot(breast_cancer)
 
 ## Spatially variable features
 
-First we'll identify deferentially expressed genes. 
-
-Parallelization helps here too let's make sure our plan is still intact
-
-```{r, eval=FALE, include=TRUE}
-plan()
-```
-
+First we'll identify deferentially expressed genes (parallelization can help here).
 
 Let's find all the markers for every cluster
 ```{r}
@@ -420,7 +401,7 @@ Looks like the  Matrix Gla protein ( _MGP_ ) gene is enriched in Ductal Carcinom
 SpatialFeaturePlot(object = breast_cancer, features = "MGP", alpha = c(0.1, 1), ncol = 3)
 ```
 
-# Multiple Sections
+# **Multiple Sections**
 
 for workshop
 ```{r eval=FALSE}
@@ -462,7 +443,7 @@ breast_cancer_merged <- SCTransform(breast_cancer_merged, assay = "Spatial", ver
 SpatialFeaturePlot(breast_cancer_merged, features = c("ERBB2", "CD8A"))
 ```
 
-# Single cell/nuclei integration
+# **Single cell/nuclei integration**
 
 Here we have a preprocessed Seurat object with 10k nuclei annotated from a breast cancer sample. Don't bother too much with the details of how this data was generated they don't particularly matter for our purposes. 
 
@@ -566,6 +547,9 @@ rasterImage(ca,0,0,1,1)
 ## Immune Microenvironment
 ### T cell subtypes
 
+__NOTE__ we'll work with subclass but if we wanted to work with class do........
+
+
 What about the immune microenvironment? 
 
 Ducal Carcinoma _in situ_ is depleted of T-cells
@@ -592,6 +576,7 @@ SpatialFeaturePlot(breast_cancer,
                    features = c("B cells"), 
                    pt.size.factor = 1.5, ncol = 2, crop = TRUE)
 ```
+
 
 There seem to be some ductal cells but have a look at our score. Are we confident in this assertion? 
 ```{r, fig.width=10, warning=FALSE}
