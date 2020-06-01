@@ -35,7 +35,7 @@ This tutorial is largely an extension off of the primary [Seurat Visium Tutorial
 3. Reference genome for all samples is GRCh38/mm10
 4. All 10x software including [Spaceranger](https://support.10xgenomics.com/spatial-gene-expression/software/pipelines/latest/what-is-space-ranger), and [Loupe Browser](https://support.10xgenomics.com/spatial-gene-expression/software/visualization/latest/what-is-loupe-browser), can be downloaded from the [10x Support Site](https://support.10xgenomics.com/)
 5. Most Seurat figures can be controlled with patchwork because they are fundamentally ggplot objects. Some really nice examples can be found on the [Patchwork GitHub](https://patchwork.data-imaginist.com/articles/guides/layout.html)
-6. This tutoial is _NOT_ officially supported by 10x genomics. It is simply for informative purposes and to provide the growndwork for individuals to get started with 3rd party analysis tools.
+6. This tutorial is _NOT_ officially supported by 10x genomics. It is simply for informative purposes and to provide the groundwork for individuals to get started with 3rd party analysis tools.
 
 
 # **Exploring Visium Data with Seurat**
@@ -260,13 +260,20 @@ LinkedDimPlot(breast_cancer)
 
 First we'll identify deferentially expressed genes (parallelization can help here).
 
-Let's find all the markers for every cluster
+Let's find all the markers for every cluster. We've already pre calculated these for you so let's just load them up
+
+
 ```{r}
-de_markers <- FindAllMarkers(breast_cancer, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+de_markers <- readRDS(file = "de_markers.rds")
 
 de_markers %>%
   group_by(cluster) %>% 
   top_n(n = 2, wt = avg_logFC)
+```
+
+Originally run with 
+```
+de_markers <- FindAllMarkers(breast_cancer, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
 ```
 
 ## Identify the most up-regulated and down-regulated genes
@@ -290,12 +297,12 @@ de_markers_down
 
 ### Most up-regulated genes
 ```{r, fig.width=10, fig.height=10, warning=FALSE}
-SpatialFeaturePlot(object = breast_cancer, features = de_markers_up$Gene[1:10], alpha = c(0.1, 1), ncol = 3)
+SpatialFeaturePlot(object = breast_cancer, features = de_markers_up$Gene[1:13], alpha = c(0.1, 1), ncol = 3)
 ```
 
 ### Most down-regulated genes
 ```{r, fig.width=10, fig.height=10, warning=FALSE}
-SpatialFeaturePlot(object = breast_cancer, features = de_markers_down$Gene[1:10], alpha = c(0.1, 1), ncol = 3)
+SpatialFeaturePlot(object = breast_cancer, features = de_markers_down$Gene[1:13], alpha = c(0.1, 1), ncol = 3)
 ```
 
 what are the top variable features?
@@ -363,7 +370,7 @@ top.features_moransi <- head(SpatiallyVariableFeatures(breast_cancer, selection.
 SpatialFeaturePlot(breast_cancer, features = top.features_moransi, ncol = 4, alpha = c(0.1, 1))
 ```
 
-We can see that the results are slightly different. So let's take a look at why.
+We can see that the results are slightly different. So let's take a look at what those difference are
 
 ```{r}
 spatially_variable_genes <- breast_cancer@assays$SCT@meta.features %>%
@@ -383,6 +390,21 @@ ggplot(spatially_variable_genes, aes(x=moransi.spatially.variable.rank,y=markvar
   theme_bw()
 ```
 
+
+We can identify these outliers interactively using ggplotly
+```{r, warning}
+plotly::ggplotly(
+  ggplot(spatially_variable_genes, aes(x=moransi.spatially.variable.rank,y=markvariogram.spatially.variable.rank, label =row.names(spatially_variable_genes)))+
+  geom_point()+
+  geom_smooth()+
+  xlab("Morans I Rank")+
+  ylab("Markvariogram Rank")+
+  annotate("text", x = 25, y = 75, label = paste("Pearson's Correlation\n", round(mm_cor$estimate[1], digits = 2), sep = ""))+
+  theme_bw()
+)
+```
+
+
 ## Cancer annotations
 
 Where are these genes being expressed relative to pathologist annotation?
@@ -399,48 +421,6 @@ Looks like the  Matrix Gla protein ( _MGP_ ) gene is enriched in Ductal Carcinom
 
 ```{r, warning=FALSE}
 SpatialFeaturePlot(object = breast_cancer, features = "MGP", alpha = c(0.1, 1), ncol = 3)
-```
-
-# **Multiple Sections**
-
-for workshop
-```{r eval=FALSE}
-breast_cancer_2 <- Load10X_Spatial(data.dir = "/mnt/libs/shared_data/human_breast_cancer_2/outs/",
-                filename = "V1_Breast_Cancer_Block_A_Section_2_filtered_feature_bc_matrix.h5")
-```
-for 10x
-```{r}
-breast_cancer_2 <- Load10X_Spatial(data.dir = "/mnt/analysis/marsoc/pipestances/HWHTFDSXX/SPATIAL_RNA_COUNTER_PD/163087/HEAD/outs/", 
-                                   slice = "slice2")
-```
-
-```{r}
-breast_cancer_merged <- merge(breast_cancer, breast_cancer_2)
-```
-
-Counts = UMI
-Features = Genes
-```{r, fig.width=10,fig.height=10, warning=FALSE}
-plot1 <- SpatialFeaturePlot(breast_cancer_merged, features = "nCount_Spatial") + 
-  theme(legend.position = "right")
-
-plot2 <- SpatialFeaturePlot(breast_cancer_merged, features = "nFeature_Spatial") +
-  theme(legend.position = "right")
-
-plot1 + plot2 + plot_layout(nrow = 2)
-```
-
-## Normalize merged data
-
-This will take ~3min
-
-Default assay will now be set to SCT
-```{r, warning=FALSE}
-breast_cancer_merged <- SCTransform(breast_cancer_merged, assay = "Spatial", verbose = TRUE)
-```
-
-```{r, fig.width=10, warning=FALSE}
-SpatialFeaturePlot(breast_cancer_merged, features = c("ERBB2", "CD8A"))
 ```
 
 # **Single cell/nuclei integration**
@@ -492,8 +472,9 @@ de_markers_snRNA %>%
   top_n(n = 2, wt = avg_logFC)
 ```
 
-Find markers that define tumors
+Notice here that we are using `test.use = "roc"` which is a AUC classifier which will give us an idea as to how well any given gene defines a cell type.
 
+**Find markers that define tumors**
 ```{r}
 de_markers_tumor <- FindMarkers(bc_snRNA, ident.1 = "Likely tumor cells", logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE)
 de_markers_tumor %>%
@@ -501,8 +482,11 @@ de_markers_tumor %>%
   arrange(-power)
 ```
 
-Find markers that define tumors
+```{r, warning=FALSE}
+FeaturePlot(bc_snRNA, features = "SHANK2")
+```
 
+**Find markers that define T cells**
 ```{r}
 de_markers_tcell <- FindMarkers(bc_snRNA, ident.1 = "T cells", logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE)
 de_markers_tcell %>%
@@ -510,8 +494,11 @@ de_markers_tcell %>%
   arrange(-power)
 ```
 
-Find markers that define stem cells
+```{r, warning=FALSE}
+FeaturePlot(bc_snRNA, features = "SKAP1")
+```
 
+**Find markers that define stem cells**
 ```{r}
 de_markers_stemcell <- FindMarkers(bc_snRNA, ident.1 = "CD49f-hi MaSCs", logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE)
 de_markers_stemcell %>%
@@ -519,6 +506,9 @@ de_markers_stemcell %>%
   arrange(-power)
 ```
 
+```{r, warning=FALSE}
+FeaturePlot(bc_snRNA, features = "IFNG-AS1")
+```
 
 ## Identify and Transfer Anchors
 
@@ -547,8 +537,7 @@ rasterImage(ca,0,0,1,1)
 ## Immune Microenvironment
 ### T cell subtypes
 
-__NOTE__ we'll work with subclass but if we wanted to work with class do........
-
+__NOTE__ we'll work with subclass
 
 What about the immune microenvironment? 
 
@@ -609,4 +598,65 @@ SpatialFeaturePlot(breast_cancer,
                    pt.size.factor = 1.5,crop = TRUE) + 
 plot_annotation(
   title = 'Tumor Stem Cells')
+```
+
+# **Multiple Sections**
+
+**PROBABLY GOING TO TAKE THIS OUT**
+
+for workshop
+```{r eval=FALSE}
+breast_cancer_2 <- Load10X_Spatial(data.dir = "/mnt/libs/shared_data/human_breast_cancer_2/outs/",
+                filename = "V1_Breast_Cancer_Block_A_Section_2_filtered_feature_bc_matrix.h5")
+```
+for 10x
+```{r}
+breast_cancer_2 <- Load10X_Spatial(data.dir = "/mnt/analysis/marsoc/pipestances/HWHTFDSXX/SPATIAL_RNA_COUNTER_PD/163087/HEAD/outs/", 
+                                   slice = "slice2")
+```
+
+```{r}
+breast_cancer_merged <- merge(breast_cancer, breast_cancer_2)
+```
+
+Counts = UMI
+Features = Genes
+```{r, fig.width=10,fig.height=10, warning=FALSE}
+plot1 <- SpatialFeaturePlot(breast_cancer_merged, features = "nCount_Spatial") + 
+  theme(legend.position = "right")
+
+plot2 <- SpatialFeaturePlot(breast_cancer_merged, features = "nFeature_Spatial") +
+  theme(legend.position = "right")
+
+plot1 + plot2 + plot_layout(nrow = 2)
+```
+
+## Normalize merged data
+
+This will take ~7min
+
+Default assay will now be set to SCT
+```{r, warning=FALSE}
+breast_cancer_merged <- SCTransform(breast_cancer_merged, assay = "Spatial", verbose = TRUE)
+```
+
+```{r}
+DefaultAssay(breast_cancer_merged) <- "SCT"
+VariableFeatures(breast_cancer_merged) <- c(FindVariableFeatures(breast_cancer), FindVariableFeatures(breast_cancer_2))
+breast_cancer_merged <- RunPCA(breast_cancer_merged, verbose = FALSE)
+breast_cancer_merged <- FindNeighbors(breast_cancer_merged, dims = 1:30)
+breast_cancer_merged <- FindClusters(breast_cancer_merged, verbose = FALSE)
+breast_cancer_merged <- RunUMAP(breast_cancer_merged, dims = 1:30)
+```
+
+
+```{r, fig.width=10, warning=FALSE}
+SpatialFeaturePlot(breast_cancer_merged, features = c("ERBB2", "CD8A"))
+```
+```{r}
+
+```
+
+```{r}
+DimPlot(breast_cancer_merged, reduction = "umap", group.by = c("ident", "orig.ident"))
 ```
