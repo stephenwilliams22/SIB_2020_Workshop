@@ -41,6 +41,10 @@ This tutorial is largely an extension off of the primary [Seurat Visium Tutorial
 # **Exploring Visium Data with Seurat**
 
 ## Load our packages
+```{r}
+.libPaths(new = "/usr/lib64/R/library")
+```
+
 ```{r Libraries, echo=TRUE, message=FALSE, warning=FALSE}
 library(Seurat)
 library(ggplot2)
