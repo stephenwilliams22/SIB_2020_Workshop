@@ -19,11 +19,11 @@ output:
 
 # **Introduction**
 
-Welcome to the **SIB Days 2020 - virtual conference** Visium Spatial Transcriptomics workshop by 10x Genomics!
+Welcome to the 10x Genomics **SIB Days 2020 - virtual conference** Visium Spatial Transcriptomics workshop!
 
-The purpose of this tutorial will be to walk users through some of the steps necessary to explore data produced by the 10x Genomics Visium Spatial Gene Expression Solution and the [Spaceranger pipeline](https://support.10xgenomics.com/spatial-gene-expression/software/pipelines/latest/what-is-space-ranger). We will investigate the data sets  are all freely available from [10x Genomics](https://support.10xgenomics.com/spatial-gene-expression/datasets).
+The purpose of this tutorial is to walk users through some of the steps necessary to explore data produced by the 10x Genomics Visium Spatial Gene Expression Solution and the [Spaceranger pipeline](https://support.10xgenomics.com/spatial-gene-expression/software/pipelines/latest/what-is-space-ranger). All datasets that we will investigate to day are all freely available from [10x Genomics](https://support.10xgenomics.com/spatial-gene-expression/datasets).
 
-This tutorial is largely an extension off of the primary [Seurat Visium Tutorial](https://satijalab.org/seurat/v3.1/spatial_vignette.html)
+Please note that this tutorial is largely an extension off of the primary [Seurat Visium Tutorial](https://satijalab.org/seurat/v3.1/spatial_vignette.html)
 
 **Things to know about this workshop**
 
@@ -41,6 +41,8 @@ This tutorial is largely an extension off of the primary [Seurat Visium Tutorial
 # **Exploring Visium Data with Seurat**
 
 ## Load our packages
+
+First we'll set the _libPath_ to make sure we are all using the same set of pre-installed libraries.
 ```{r}
 .libPaths(new = "/usr/lib64/R/library")
 ```
@@ -55,10 +57,17 @@ library(RColorBrewer)
 
 ## Loading data in a Seurat object
 
+Now we'll load up the dataset that will be used from this point forward using _Seurat::Load10X_Spatial_ function.
+
 Real Dataset for the tutorial
 ```{r eval=FALSE}
 breast_cancer <- Load10X_Spatial(data.dir = "/mnt/libs/shared_data/human_breast_cancer_1/outs/",
                 filename = "V1_Breast_Cancer_Block_A_Section_1_filtered_feature_bc_matrix.h5")
+```
+
+Note that the Default Assay is set to "Spatial"
+```{r}
+DefaultAssay(breast_cancer)
 ```
 
 
@@ -67,14 +76,15 @@ Same data just internal to 10x
 breast_cancer <- Load10X_Spatial(data.dir = "/mnt/analysis/marsoc/pipestances/HWHTFDSXX/SPATIAL_RNA_COUNTER_PD/163086/HEAD/outs/", slice = "slice1")
 ```
 
-There are a bunch of data sets hosted by the Satija lab in the [Seurat Data Package](https://github.com/satijalab/seurat-data).
+It's good to note that there are a bunch of Visium data sets hosted by the Satija lab in the [Seurat Data Package](https://github.com/satijalab/seurat-data).
 
 # **Results**
 ## QC
 Let's have a look at some basic QC information. Keep in mind that most Seurat plots are ggplot object and can be manipulated as such.
 
-Counts = UMI
-Features = Genes
+**Counts = UMI**
+
+**Features = Genes**
 ```{r, fig.width=10,fig.height=8, warning=FALSE}
 plot1 <- VlnPlot(breast_cancer, features = "nCount_Spatial", pt.size = 0.1) + 
   ggtitle("UMI") +
@@ -101,10 +111,9 @@ plot1 + plot2 + plot3  + plot4 + plot_layout(nrow = 2, ncol = 2)
 
 ## Normalization
 
-Spaceranger does normalization for clustering and DE but does not return that normalized matrix
+Spaceranger does UMI normalization for clustering and differential expression but does not return that normalized matrix.
 
-Pre-normalization 
-Raw UMI counts
+Let's have a look at pre-normalization raw UMI counts. Feel free to change these genes or add genes.
 ```{r, fig.width=10, warning=FALSE}
 SpatialFeaturePlot(breast_cancer, features = c("ERBB2", "CD8A"))
 ```
@@ -120,21 +129,18 @@ Default assay will now be set to SCT
 breast_cancer <- SCTransform(breast_cancer, assay = "Spatial", verbose = FALSE)
 ```
 
-
+Now let's have a look at SCT normalized UMI counts for these same genes. The Default Assays is now "SCT"
 ```{r, fig.width=10, warning=FALSE}
 SpatialFeaturePlot(breast_cancer, features = c("ERBB2", "CD8A"))
 ```
-
 
 From Seurat: 
 
 The default parameters in Seurat emphasize the visualization of molecular data. However, you can also adjust the size of the spots (and their transparency) to improve the visualization of the histology image, by changing the following parameters:
 
-    pt.size.factor- This will scale the size of the spots. Default is 1.6
-    alpha - minimum and maximum transparency. Default is c(1, 1).
-    Try setting to alpha c(0.1, 1), to downweight the transparency of points with lower expression
-
-
++  pt.size.factor- This will scale the size of the spots. Default is 1.6
++  alpha - minimum and maximum transparency. Default is c(1, 1).
++  Try setting to alpha c(0.1, 1), to downweight the transparency of points with lower expression
 
 ```{r, fig.width=10, warning=FALSE}
 p1 <- SpatialFeaturePlot(breast_cancer, features = "IGFBP5", pt.size.factor = 1)+ 
@@ -152,8 +158,9 @@ We can then proceed to run dimensionality reduction and clustering on the RNA ex
 
 Some of these processes can be parallized please see [Parallelization in Seurat](https://satijalab.org/seurat/v3.1/future_vignette.html) for more info
 
-The default UMAP calculation is performed with the [R-based UWOT](https://cran.r-project.org/web/packages/uwot/index.html) library However, you can run UMAP in python via reticulate library and `umap-learn`. We have found that for smaller data sets (<= 10k cells/spots) UWOT is great. For much larger data sets (100k + cells/spots) `umap-learn` can be a faster option.
+The default UMAP calculation is performed with the [R-based UWOT](https://cran.r-project.org/web/packages/uwot/index.html) library However, you can run UMAP in python via the reticulate library and `umap-learn`. We have found that for smaller data sets (<= 10k cells/spots) UWOT is great. For much larger data sets (100k + cells/spots) `umap-learn` can be a faster option.
 
+#### Dimensionality reduction
 ```{r}
 breast_cancer <- RunPCA(breast_cancer, assay = "SCT", verbose = FALSE)
 breast_cancer <- FindNeighbors(breast_cancer, reduction = "pca", dims = 1:30)
@@ -161,13 +168,16 @@ breast_cancer <- FindClusters(breast_cancer, verbose = FALSE)
 breast_cancer <- RunUMAP(breast_cancer, reduction = "pca", dims = 1:30)
 ```
 
-Now let's have a look at the clustering
+#### Clustering
+
+Now let's have a look at the clustering in UMAP space
 
 ```{r, fig.width=8}
 DimPlot(breast_cancer, reduction = "umap", label = FALSE,) +
   labs(color = "Cluster")
 ```
 
+Here's the clustering in UMAP and image space
 ```{r, fig.width=10,fig.height=10, warning=FALSE}
 p1 <- DimPlot(breast_cancer, reduction = "umap", label = TRUE) +
   labs(color = "Cluster")
@@ -180,10 +190,7 @@ p1 + p2 + plot_annotation(
 ) + plot_layout(nrow = 1)
 ```
 
-I don't really like these colors so let's change them
-```{r}
-myPalette <- colorRampPalette(rev(brewer.pal(11, "Spectral")))
-```
+I don't really like these colors so let's change them manually
 
 ```{r, fig.width=10, fig.height=10, warning=FALSE}
 p1 <- DimPlot(breast_cancer, reduction = "umap", label = TRUE) +
@@ -229,8 +236,8 @@ plot1 + plot2
 ```
 
 
-Now let's take a look at at a gene of interest with violin plots but also in image space.
-```{r, fig.width=8, fig.height=8}
+Now let's take a look at at a gene of interest with violin plots but also in image space. The triangles represent the mean expression of each cluster.
+```{r, fig.width=12, fig.height=8, warning=FALSE}
 p1 <- VlnPlot(breast_cancer, features = "IGFBP5", pt.size = 0.1) + 
   ggtitle("IGFBP5") +
   scale_fill_manual(values = c("#b2df8a","#e41a1c","#377eb8","#4daf4a","#ff7f00","gold", 
@@ -255,18 +262,15 @@ row1 <- p2 + p3 + plot_layout(nrow = 1)
 row1 + p1+ plot_layout(nrow = 2, widths = c(0.5, 0.5))
 ```
 
-We can also look at these data interactively
+We can also look at these data interactively. This function can be a little slow but also very useful to visualize expression in different projection spaces.
+
 ```{r eval=FALSE, include=TRUE}
 LinkedDimPlot(breast_cancer)
 ```
 
 ## Spatially variable features
 
-First we'll identify deferentially expressed genes (parallelization can help here).
-
-Let's find all the markers for every cluster. We've already pre calculated these for you so let's just load them up
-
-
+First we'll identify deferentially expressed genes. Let's find all the markers for every cluster. We've already pre calculated these for you so let's just load them up. 
 ```{r}
 de_markers <- readRDS(file = "de_markers.rds")
 
@@ -275,12 +279,12 @@ de_markers %>%
   top_n(n = 2, wt = avg_logFC)
 ```
 
-Originally run with 
+Originally this was processed with 
 ```
 de_markers <- FindAllMarkers(breast_cancer, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
 ```
 
-## Identify the most up-regulated and down-regulated genes
+### Identify the most up-regulated and down-regulated genes
 ```{r}
 de_markers_up <- de_markers %>%
   tibble::rownames_to_column(var = "Gene") %>% 
@@ -299,31 +303,31 @@ de_markers_up
 de_markers_down
 ```
 
-### Most up-regulated genes
+#### Most up-regulated genes
 ```{r, fig.width=10, fig.height=10, warning=FALSE}
 SpatialFeaturePlot(object = breast_cancer, features = de_markers_up$Gene[1:13], alpha = c(0.1, 1), ncol = 3)
 ```
 
-### Most down-regulated genes
+#### Most down-regulated genes
 ```{r, fig.width=10, fig.height=10, warning=FALSE}
 SpatialFeaturePlot(object = breast_cancer, features = de_markers_down$Gene[1:13], alpha = c(0.1, 1), ncol = 3)
 ```
 
-what are the top variable features?
+What are the top variable features?
 ```{r}
 VariableFeatures(breast_cancer)[1:10]
 ```
 
-what are the top DE genes?
+What are the top DE genes?
 ```{r}
 rownames(de_markers)[1:10]
 ```
 
 ## Spatially Variable Genes
 
-So what about spatial enrichment? 
+So what about spatial enrichment? This can be a very informative analysis tool that takes into the spatial relationship of each gene.
 
-Some methods
+Some methods for these approaches are:
 
 1. [Trendsceek](https://www.nature.com/articles/nmeth.4634)
 2. [Splotch](https://www.biorxiv.org/content/10.1101/757096v1)
@@ -332,7 +336,9 @@ Some methods
   + We have found this implementation not to be very effective. It's also not under active development
 
 
-Using the top 100 variable genes find spatially enriched ones. Note that in the Seurat Spatial Tutorial they use 1000 genes. You can also use all genes but that will take a long time. Using a calculation of [Morans I](https://en.wikipedia.org/wiki/Moran%27s_I) can sometimes be a faster approach, especially if you are using parallization.
+Using the top 100 variable genes find spatially enriched ones. Note that in the Seurat Spatial Tutorial they use 1000 genes (this can take a long time). You can also use all genes but that will take a long time. Using a calculation of [Morans I](https://en.wikipedia.org/wiki/Moran%27s_I) can sometimes be a faster approach, especially if you are using parallization. Here we'll do both.
+
+While this process is running it is a good time to take a short couple minute break, catch up, or ask questions.
 
 
 ```{r}
