@@ -1,10 +1,12 @@
 ---
 title: "SIB Days 2020 - Virtual Conference - June 8, 2020"
-subtitle: "Dataset: Breast Cancer"
+subtitle: 'Dataset: Breast Cancer'
 author:
-  - Dr. Patrick Roelli, Computational Biologist 2 - Computational Biology^[10x Genomics, patrick.roelli@10xgenomics.com ]
-  - Dr. Stefania Giacomello, Computational Biologist 2 - Computational Biology^[10x Genomics, stefania.giacomello@10xgenomics.com]
-  - Dr. Stephen Williams, Senior Scientist - Computational Biology^[10x Genomics, stephen.williams@10xgenomics.com]
+- Dr. Patrick Roelli, Computational Biologist 2 - Computational Biology^[10x Genomics,
+  patrick.roelli@10xgenomics.com ]
+- Dr. Stefania Giacomello, Computational Biologist 2 - Computational Biology^[10x
+  Genomics, stefania.giacomello@10xgenomics.com]
+- Dr. Stephen Williams, Senior Scientist - Computational Biology^[10x Genomics, stephen.williams@10xgenomics.com]
 date: 'Last Compiled: `r format(Sys.Date(), "%B %d, %Y")`'
 output:
   html_notebook:
@@ -43,7 +45,7 @@ Please note that this tutorial is largely an extension off of the primary [Seura
 ## Load our packages
 
 First we'll set the _libPath_ to make sure we are all using the same set of pre-installed libraries.
-```{r}
+```{r, eval=FALSE}
 .libPaths(new = "/usr/lib64/R/library")
 ```
 
@@ -65,17 +67,15 @@ breast_cancer <- Load10X_Spatial(data.dir = "/mnt/libs/shared_data/human_breast_
                 filename = "V1_Breast_Cancer_Block_A_Section_1_filtered_feature_bc_matrix.h5")
 ```
 
-Note that the Default Assay is set to "Spatial"
-```{r}
-DefaultAssay(breast_cancer)
-```
-
-
 Same data just internal to 10x
 ```{r}
 breast_cancer <- Load10X_Spatial(data.dir = "/mnt/analysis/marsoc/pipestances/HWHTFDSXX/SPATIAL_RNA_COUNTER_PD/163086/HEAD/outs/", slice = "slice1")
 ```
 
+Note that the Default Assay is set to "Spatial"
+```{r}
+DefaultAssay(breast_cancer)
+```
 It's good to note that there are a bunch of Visium data sets hosted by the Satija lab in the [Seurat Data Package](https://github.com/satijalab/seurat-data).
 
 # **Results**
@@ -287,11 +287,9 @@ de_markers <- FindAllMarkers(breast_cancer, only.pos = TRUE, min.pct = 0.25, log
 ### Identify the most up-regulated and down-regulated genes
 ```{r}
 de_markers_up <- de_markers %>%
-  tibble::rownames_to_column(var = "Gene") %>% 
   arrange(-avg_logFC)
 
 de_markers_down <- de_markers %>%
-  tibble::rownames_to_column(var = "Gene") %>% 
   arrange(avg_logFC)
 ```
 
@@ -305,12 +303,12 @@ de_markers_down
 
 #### Most up-regulated genes
 ```{r, fig.width=10, fig.height=10, warning=FALSE}
-SpatialFeaturePlot(object = breast_cancer, features = de_markers_up$Gene[1:13], alpha = c(0.1, 1), ncol = 3)
+SpatialFeaturePlot(object = breast_cancer, features = de_markers_up$gene[1:13], alpha = c(0.1, 1), ncol = 3)
 ```
 
 #### Most down-regulated genes
 ```{r, fig.width=10, fig.height=10, warning=FALSE}
-SpatialFeaturePlot(object = breast_cancer, features = de_markers_down$Gene[1:13], alpha = c(0.1, 1), ncol = 3)
+SpatialFeaturePlot(object = breast_cancer, features = de_markers_down$gene[1:13], alpha = c(0.1, 1), ncol = 3)
 ```
 
 What are the top variable features?
@@ -473,9 +471,11 @@ Subclass
 ```{r, fig.width=10}
 DimPlot(bc_snRNA, group.by = "subclass", label = FALSE)
 ```
+
 ## snRNA Differentially Expressed Genes
 
 What genes define some cell types?
+
 ```
 # Find markers for every cluster compared to all remaining cells, report only the positive ones
 # This takes a bit of time so we'll skip it and move on to specific cell types
@@ -487,13 +487,15 @@ de_markers_snRNA %>%
 
 Notice here that we are using `test.use = "roc"` which is a AUC classifier which will give us an idea as to how well any given gene defines a cell type.
 
-**Find markers that define tumors**
-```{r, message=FALSE}
+**Find markers that define Tumor cells**
+
+```{r}
 de_markers_tumor <- FindMarkers(bc_snRNA, ident.1 = "Likely tumor cells", logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE)
 de_markers_tumor %>%
   tibble::rownames_to_column("gene") %>% 
   arrange(-power)
 ```
+
 
 ```{r, warning=FALSE, fig.width=10}
 (FeaturePlot(bc_snRNA, features = "CASC15") |
@@ -623,65 +625,4 @@ SpatialFeaturePlot(breast_cancer,
                    pt.size.factor = 1.5,crop = TRUE) + 
 plot_annotation(
   title = 'Tumor Stem Cells')
-```
-
-# **Multiple Sections**
-
-**PROBABLY GOING TO TAKE THIS OUT**
-
-for workshop
-```{r eval=FALSE}
-breast_cancer_2 <- Load10X_Spatial(data.dir = "/mnt/libs/shared_data/human_breast_cancer_2/outs/",
-                filename = "V1_Breast_Cancer_Block_A_Section_2_filtered_feature_bc_matrix.h5")
-```
-for 10x
-```{r}
-breast_cancer_2 <- Load10X_Spatial(data.dir = "/mnt/analysis/marsoc/pipestances/HWHTFDSXX/SPATIAL_RNA_COUNTER_PD/163087/HEAD/outs/", 
-                                   slice = "slice2")
-```
-
-```{r}
-breast_cancer_merged <- merge(breast_cancer, breast_cancer_2)
-```
-
-Counts = UMI
-Features = Genes
-```{r, fig.width=10,fig.height=10, warning=FALSE}
-plot1 <- SpatialFeaturePlot(breast_cancer_merged, features = "nCount_Spatial") + 
-  theme(legend.position = "right")
-
-plot2 <- SpatialFeaturePlot(breast_cancer_merged, features = "nFeature_Spatial") +
-  theme(legend.position = "right")
-
-plot1 + plot2 + plot_layout(nrow = 2)
-```
-
-## Normalize merged data
-
-This will take ~7min
-
-Default assay will now be set to SCT
-```{r, warning=FALSE}
-breast_cancer_merged <- SCTransform(breast_cancer_merged, assay = "Spatial", verbose = TRUE)
-```
-
-```{r}
-DefaultAssay(breast_cancer_merged) <- "SCT"
-VariableFeatures(breast_cancer_merged) <- c(FindVariableFeatures(breast_cancer), FindVariableFeatures(breast_cancer_2))
-breast_cancer_merged <- RunPCA(breast_cancer_merged, verbose = FALSE)
-breast_cancer_merged <- FindNeighbors(breast_cancer_merged, dims = 1:30)
-breast_cancer_merged <- FindClusters(breast_cancer_merged, verbose = FALSE)
-breast_cancer_merged <- RunUMAP(breast_cancer_merged, dims = 1:30)
-```
-
-
-```{r, fig.width=10, warning=FALSE}
-SpatialFeaturePlot(breast_cancer_merged, features = c("ERBB2", "CD8A"))
-```
-```{r}
-
-```
-
-```{r}
-DimPlot(breast_cancer_merged, reduction = "umap", group.by = c("ident", "orig.ident"))
 ```
