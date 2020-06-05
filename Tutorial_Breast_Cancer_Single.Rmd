@@ -76,8 +76,7 @@ breast_cancer <- Load10X_Spatial(data.dir = "/mnt/libs/shared_data/human_breast_
                 filename = "V1_Breast_Cancer_Block_A_Section_1_filtered_feature_bc_matrix.h5")
 ```
 
-Same data just internal to 10x
-```{r}
+```{r, echo=FALSE}
 breast_cancer <- Load10X_Spatial(data.dir = "/mnt/analysis/marsoc/pipestances/HWHTFDSXX/SPATIAL_RNA_COUNTER_PD/163086/HEAD/outs/", slice = "slice1")
 ```
 
@@ -346,7 +345,7 @@ LinkedDimPlot(breast_cancer)
 ## Spatially variable features
 
 First we'll identify deferentially expressed genes. Let's find all the markers for every cluster. We've already pre calculated these for you so let's just load them up. 
-workshop
+
 ```{r, eval=FALSE}
 de_markers <- readRDS(file = "/mnt/libs/shared_data/de_markers.rds")
 
@@ -356,9 +355,7 @@ de_markers %>%
 ```
 
 
-
-10x
-```{r}
+```{r, echo=FALSE}
 de_markers <- readRDS(file = "/mnt/home/stephen.williams/yard/Odin/SIB_2020_Workshop/de_markers.rds")
 
 de_markers %>%
@@ -524,12 +521,10 @@ Here we have a preprocessed Seurat object with 10k nuclei annotated from a breas
 
 ## Load the Seurat object
 
-10x infrastructure
-```{r}
+```{r, echo=FALSE}
 bc_snRNA <- readRDS("/mnt/home/stephen.williams/yard/Odin/SIB_2020_Workshop/bc_snRNA.rds")
 ```
 
-For the workshop
 ```{r eval=FALSE, include=TRUE}
 bc_snRNA <- readRDS("/mnt/libs/shared_data/bc_snRNA.rds")
 ```
@@ -669,18 +664,20 @@ What about the immune microenvironment?
 
 Ducal Carcinoma _in situ_ is depleted of T-cells
 ```{r, fig.width=15, warning=FALSE}
-(SpatialFeaturePlot(breast_cancer, 
+p1 <- SpatialFeaturePlot(breast_cancer, 
                    features = c("T cells-0"), 
-                   pt.size.factor = 1.5, ncol = 2, crop = TRUE) |
-SpatialFeaturePlot(breast_cancer, 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)
+p2 <- SpatialFeaturePlot(breast_cancer, 
                    features = c("T cells-1"), 
-                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)) /
-(SpatialFeaturePlot(breast_cancer, 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)
+p3 <- SpatialFeaturePlot(breast_cancer, 
                    features = c("T cells-2"), 
-                   pt.size.factor = 1.5, ncol = 2, crop = TRUE) |
-SpatialFeaturePlot(breast_cancer, 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)
+p4 <- SpatialFeaturePlot(breast_cancer, 
                    features = c("T cells-5"), 
-                   pt.size.factor = 1.5, ncol = 2, crop = TRUE))
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)
+
+cowplot::plot_grid(p1,p2,p3,p4)
 ```
 
 ### B cell subtypes
@@ -703,18 +700,19 @@ SpatialFeaturePlot(breast_cancer,
 
 It looks like the ducal carcinoma _in situ_ is enriched for tumor subtypes 8, 10, and 12 but not 3. 
 ```{r, fig.width=15, warning=FALSE}
-(SpatialFeaturePlot(breast_cancer, 
+p1 <- SpatialFeaturePlot(breast_cancer, 
                    features = c("Tumor cells-3"), 
-                   pt.size.factor = 1.5, ncol = 2, crop = TRUE) |
-SpatialFeaturePlot(breast_cancer, 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)
+p1 <- SpatialFeaturePlot(breast_cancer, 
                    features = c("Tumor cells-8"), 
-                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)) /
-(SpatialFeaturePlot(breast_cancer, 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)
+p1 <- SpatialFeaturePlot(breast_cancer, 
                    features = c("Tumor cells-10"), 
-                   pt.size.factor = 1.5, ncol = 2, crop = TRUE) |
-SpatialFeaturePlot(breast_cancer, 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)
+p1 <- SpatialFeaturePlot(breast_cancer, 
                    features = c("Tumor cells-12"), 
-                   pt.size.factor = 1.5, ncol = 2, crop = TRUE))
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)
+cowplot::plot_grid(p1,p2,p3,p4)
 ```
 
 Like the Ductal Cells, we might not be as confident in the Tumor Stem Cells but this might make sense considering the 10x snRNA dataset and the Visium dataset are from different individuals.

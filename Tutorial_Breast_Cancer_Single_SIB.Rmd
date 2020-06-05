@@ -635,18 +635,20 @@ What about the immune microenvironment?
 
 Ducal Carcinoma _in situ_ is depleted of T-cells
 ```{r, fig.width=15, warning=FALSE}
-(SpatialFeaturePlot(breast_cancer, 
+p1 <- SpatialFeaturePlot(breast_cancer, 
                    features = c("T cells-0"), 
-                   pt.size.factor = 1.5, ncol = 2, crop = TRUE) |
-SpatialFeaturePlot(breast_cancer, 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)
+p2 <- SpatialFeaturePlot(breast_cancer, 
                    features = c("T cells-1"), 
-                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)) /
-(SpatialFeaturePlot(breast_cancer, 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)
+p3 <- SpatialFeaturePlot(breast_cancer, 
                    features = c("T cells-2"), 
-                   pt.size.factor = 1.5, ncol = 2, crop = TRUE) |
-SpatialFeaturePlot(breast_cancer, 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)
+p4 <- SpatialFeaturePlot(breast_cancer, 
                    features = c("T cells-5"), 
-                   pt.size.factor = 1.5, ncol = 2, crop = TRUE))
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)
+
+cowplot::plot_grid(p1,p2,p3,p4)
 ```
 
 ### B cell subtypes
@@ -669,18 +671,19 @@ SpatialFeaturePlot(breast_cancer,
 
 It looks like the ducal carcinoma _in situ_ is enriched for tumor subtypes 8, 10, and 12 but not 3. 
 ```{r, fig.width=15, warning=FALSE}
-(SpatialFeaturePlot(breast_cancer, 
+p1 <- SpatialFeaturePlot(breast_cancer, 
                    features = c("Tumor cells-3"), 
-                   pt.size.factor = 1.5, ncol = 2, crop = TRUE) |
-SpatialFeaturePlot(breast_cancer, 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)
+p1 <- SpatialFeaturePlot(breast_cancer, 
                    features = c("Tumor cells-8"), 
-                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)) /
-(SpatialFeaturePlot(breast_cancer, 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)
+p1 <- SpatialFeaturePlot(breast_cancer, 
                    features = c("Tumor cells-10"), 
-                   pt.size.factor = 1.5, ncol = 2, crop = TRUE) |
-SpatialFeaturePlot(breast_cancer, 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)
+p1 <- SpatialFeaturePlot(breast_cancer, 
                    features = c("Tumor cells-12"), 
-                   pt.size.factor = 1.5, ncol = 2, crop = TRUE))
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)
+cowplot::plot_grid(p1,p2,p3,p4)
 ```
 
 Like the Ductal Cells, we might not be as confident in the Tumor Stem Cells but this might make sense considering the 10x snRNA dataset and the Visium dataset are from different individuals.
