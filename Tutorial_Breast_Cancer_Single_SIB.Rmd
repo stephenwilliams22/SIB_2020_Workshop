@@ -44,18 +44,17 @@ Please note that this tutorial is largely an extension off of the primary [Seura
 
 ## Load our packages
 
-First we'll set the _libPath_ to make sure we are all using the same set of pre-installed libraries.
-
-```{r, eval=FALSE}
-.libPaths(new = "/usr/lib64/R/library")
-```
-
 ```{r Libraries, echo=TRUE, message=FALSE, warning=FALSE}
 library(Seurat)
 library(ggplot2)
 library(patchwork)
 library(dplyr)
 library(RColorBrewer)
+```
+
+If you have problems with the libraries we'll set the _libPath_ to make sure we are all using the same set of pre-installed libraries.
+```{r, eval=FALSE}
+.libPaths(new = "/usr/lib64/R/library")
 ```
 
 ## Loading data in a Seurat object
