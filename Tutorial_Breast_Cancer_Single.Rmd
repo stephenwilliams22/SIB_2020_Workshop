@@ -2,7 +2,7 @@
 title: "SIB Days 2020 - Virtual Conference - June 8, 2020"
 subtitle: 'Dataset: Breast Cancer'
 author:
-- Dr. Patrick Roelli, Computational Biologist 2 - Computational Biology^[10x Genomics,
+- MSc. Patrick Roelli, Computational Biologist 2 - Computational Biology^[10x Genomics,
   patrick.roelli@10xgenomics.com ]
 - Dr. Stefania Giacomello, Computational Biologist 2 - Computational Biology^[10x
   Genomics, stefania.giacomello@10xgenomics.com]
@@ -80,6 +80,15 @@ It's good to note that there are a bunch of Visium data sets hosted by the Satij
 
 # **Results**
 ## QC
+
+It's very easy to add metadata to your seurat object with any values you want to check out on top of the defaults.
+
+```{r, fig.width=10,fig.height=8, warning=FALSE}
+mito.gene.names <- grep("^mt-", rownames(breast_cancer@assays$Spatial), value = TRUE, ignore.case = TRUE)
+col.total <- Matrix::colSums(breast_cancer@assays$Spatial)
+breast_cancer <- AddMetaData(breast_cancer, Matrix::colSums(breast_cancer@assays$Spatial[mito.gene.names, ]) / col.total, "pct.mito")
+```
+
 Let's have a look at some basic QC information. Keep in mind that most Seurat plots are ggplot object and can be manipulated as such.
 
 **Counts = UMI**
@@ -100,13 +109,21 @@ plot2 <- VlnPlot(breast_cancer, features = "nFeature_Spatial", pt.size = 0.1) +
         legend.position = "right") +
   NoLegend()
 
-plot3 <- SpatialFeaturePlot(breast_cancer, features = "nCount_Spatial") + 
+plot3 <- VlnPlot(breast_cancer, features = "pct.mito", pt.size = 0.1) + 
+  ggtitle("Percentage Mito genes") +
+  theme(axis.text.x = element_blank(), 
+        axis.title.x = element_blank(), 
+        legend.position = "right") +
+  NoLegend()
+plot4 <- SpatialFeaturePlot(breast_cancer, features = "nCount_Spatial") + 
   theme(legend.position = "right")
 
-plot4 <- SpatialFeaturePlot(breast_cancer, features = "nFeature_Spatial") +
+plot5 <- SpatialFeaturePlot(breast_cancer, features = "nFeature_Spatial") +
+  theme(legend.position = "right")
+plot6 <- SpatialFeaturePlot(breast_cancer, features = "pct.mito") +
   theme(legend.position = "right")
 
-plot1 + plot2 + plot3  + plot4 + plot_layout(nrow = 2, ncol = 2)
+plot1 + plot2 + plot3  + plot4 + plot5 + plot6 + plot_layout(nrow = 2, ncol = 3)
 ```
 
 ## Normalization
@@ -115,7 +132,7 @@ Spaceranger does UMI normalization for clustering and differential expression bu
 
 Let's have a look at pre-normalization raw UMI counts. Feel free to change these genes or add genes.
 ```{r, fig.width=10, warning=FALSE}
-SpatialFeaturePlot(breast_cancer, features = c("ERBB2", "CD8A"))
+SpatialFeaturePlot(breast_cancer, features = c("ERBB2", "CD8A", "MT-ND1"))
 ```
 
 ### SE transform
@@ -131,7 +148,7 @@ breast_cancer <- SCTransform(breast_cancer, assay = "Spatial", verbose = FALSE)
 
 Now let's have a look at SCT normalized UMI counts for these same genes. The Default Assays is now "SCT"
 ```{r, fig.width=10, warning=FALSE}
-SpatialFeaturePlot(breast_cancer, features = c("ERBB2", "CD8A"))
+SpatialFeaturePlot(breast_cancer, features = c("ERBB2", "CD8A", "MT-ND1"))
 ```
 
 From Seurat: 
@@ -162,19 +179,27 @@ The default UMAP calculation is performed with the [R-based UWOT](https://cran.r
 
 #### Dimensionality reduction
 ```{r}
+breast_cancer <- FindVariableFeatures(breast_cancer)
 breast_cancer <- RunPCA(breast_cancer, assay = "SCT", verbose = FALSE)
-breast_cancer <- FindNeighbors(breast_cancer, reduction = "pca", dims = 1:30)
-breast_cancer <- FindClusters(breast_cancer, verbose = FALSE)
-breast_cancer <- RunUMAP(breast_cancer, reduction = "pca", dims = 1:30)
+ElbowPlot(breast_cancer)
 ```
 
 #### Clustering
+
+It's important to note that the number of clusters is not only defined by the biology, the technical variation as well as the hyperparamters chosen in the algorithms.
+There is one particular value, resolution, that can be changed to zoom in and out of the clustering. Here we use the default value, 0.8
+```{r}
+breast_cancer <- FindNeighbors(breast_cancer, reduction = "pca", dims = 1:30)
+breast_cancer <- FindClusters(breast_cancer, verbose = FALSE, resolution = 0.8)
+breast_cancer <- RunUMAP(breast_cancer, reduction = "pca", dims = 1:30)
+```
 
 Now let's have a look at the clustering in UMAP space
 
 ```{r, fig.width=8}
 DimPlot(breast_cancer, reduction = "umap", label = FALSE,) +
   labs(color = "Cluster")
+FeaturePlot(breast_cancer, features = c('nFeature_Spatial','pct.mito'), dims = 1:2)
 ```
 
 Here's the clustering in UMAP and image space
@@ -186,7 +211,7 @@ p2 <- SpatialDimPlot(breast_cancer, label = TRUE, label.size = 3) +
 
 p1 + p2 + plot_annotation(
   title = 'Clustering in UMAP and Tissue Space',
-  caption = 'Processed by Spaceranger 1.1\nNormilization and Clustering by Seurat'
+  caption = 'Processed by Spaceranger 1.1\nNormalization and Clustering by Seurat'
 ) + plot_layout(nrow = 1)
 ```
 
@@ -207,7 +232,7 @@ p2 <- SpatialDimPlot(breast_cancer, label = TRUE, label.size = 3) +
 
 p1 + p2 + plot_annotation(
   title = 'Clustering in UMAP and Tissue Space',
-  caption = 'Processed by Spaceranger 1.1\nNormilization and Clustering by Seurat'
+  caption = 'Processed by Spaceranger 1.1\nNormalization and Clustering by Seurat'
 ) + plot_layout(nrow = 1)
 ```
 
