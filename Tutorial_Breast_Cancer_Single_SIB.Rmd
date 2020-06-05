@@ -1,0 +1,693 @@
+---
+title: "SIB Days 2020 - Virtual Conference - June 8, 2020"
+subtitle: 'Dataset: Breast Cancer'
+author:
+- Patrick Roelli, MSc., Computational Biologist 2 - Computational Biology^[10x Genomics,
+  patrick.roelli@10xgenomics.com ]
+- Dr. Stefania Giacomello, Computational Biologist 2 - Computational Biology^[10x
+  Genomics, stefania.giacomello@10xgenomics.com]
+- Dr. Stephen Williams, Senior Scientist - Computational Biology^[10x Genomics, stephen.williams@10xgenomics.com]
+date: 'Last Compiled: `r format(Sys.Date(), "%B %d, %Y")`'
+output:
+  html_notebook:
+    code_folding: none
+    theme: journal
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+---
+
+[![10x Home](https://github.com/stephenwilliams22/SIB_2020_Workshop/raw/master/images/10x%20homepage.png)](https://www.10xgenomics.com/)
+
+# **Introduction**
+
+Welcome to the 10x Genomics **SIB Days 2020 - virtual conference** Visium Spatial Transcriptomics workshop!
+
+The purpose of this tutorial is to walk users through some of the steps necessary to explore data produced by the 10x Genomics Visium Spatial Gene Expression Solution and the [Spaceranger pipeline](https://support.10xgenomics.com/spatial-gene-expression/software/pipelines/latest/what-is-space-ranger). All datasets that we will investigate to day are all freely available from [10x Genomics](https://support.10xgenomics.com/spatial-gene-expression/datasets).
+
+Please note that this tutorial is largely an extension off of the primary [Seurat Visium Tutorial](https://satijalab.org/seurat/v3.1/spatial_vignette.html)
+
+**Things to know about this workshop**
+
+1. All files that will be used can be found at: `/mnt/libs/shared_data/`
+
+[![Terminal](https://github.com/stephenwilliams22/SIB_2020_Workshop/raw/master/images/Terminal.png)]
+
+2. Getting started with R and Visium data outside of Seurat at: https://support.10xgenomics.com/spatial-gene-expression/software/pipelines/latest/rkit
+3. Reference genome for all samples is GRCh38/mm10
+4. All 10x software including [Spaceranger](https://support.10xgenomics.com/spatial-gene-expression/software/pipelines/latest/what-is-space-ranger), and [Loupe Browser](https://support.10xgenomics.com/spatial-gene-expression/software/visualization/latest/what-is-loupe-browser), can be downloaded from the [10x Support Site](https://support.10xgenomics.com/)
+5. Most Seurat figures can be controlled with patchwork because they are fundamentally ggplot objects. Some really nice examples can be found on the [Patchwork GitHub](https://patchwork.data-imaginist.com/articles/guides/layout.html)
+6. This tutorial is _NOT_ officially supported by 10x genomics. It is simply for informative purposes and to provide the groundwork for individuals to get started with 3rd party analysis tools.
+
+
+# **Exploring Visium Data with Seurat**
+
+## Load our packages
+
+First we'll set the _libPath_ to make sure we are all using the same set of pre-installed libraries.
+
+```{r, eval=FALSE}
+.libPaths(new = "/usr/lib64/R/library")
+```
+
+```{r Libraries, echo=TRUE, message=FALSE, warning=FALSE}
+library(Seurat)
+library(ggplot2)
+library(patchwork)
+library(dplyr)
+library(RColorBrewer)
+```
+
+## Loading data in a Seurat object
+
+Now we'll load up the dataset that will be used from this point forward using _Seurat::Load10X_Spatial_ function.
+
+```{r}
+breast_cancer <- Load10X_Spatial(data.dir = "/mnt/libs/shared_data/human_breast_cancer_1/outs/",
+                filename = "V1_Breast_Cancer_Block_A_Section_1_filtered_feature_bc_matrix.h5")
+```
+
+Note that the Default Assay is set to "Spatial"
+```{r}
+DefaultAssay(breast_cancer)
+```
+It's good to note that there are a bunch of Visium data sets hosted by the Satija lab in the [Seurat Data Package](https://github.com/satijalab/seurat-data).
+
+# **Results**
+## QC
+
+It's very easy to add metadata to your Seurat object with any values you want to check out on top of the defaults.
+
+```{r, fig.width=10,fig.height=8, warning=FALSE}
+mito.gene.names <- grep("^mt-", rownames(breast_cancer@assays$Spatial), value = TRUE, ignore.case = TRUE)
+col.total <- Matrix::colSums(breast_cancer@assays$Spatial)
+breast_cancer <- AddMetaData(breast_cancer, Matrix::colSums(breast_cancer@assays$Spatial[mito.gene.names, ]) / col.total, "pct.mito")
+```
+
+
+Let's have a look at some basic QC information. Keep in mind that most Seurat plots are ggplot object and can be manipulated as such.
+
+**Counts = UMI**
+
+**Features = Genes**
+```{r, fig.width=10,fig.height=4, warning=FALSE}
+plot1 <- VlnPlot(breast_cancer, features = "nCount_Spatial", pt.size = 0.1) + 
+  ggtitle("UMI") +
+  theme(axis.text.x = element_blank(), 
+        axis.title.x = element_blank(), 
+        legend.position = "right") +
+  NoLegend()
+
+plot2 <- VlnPlot(breast_cancer, features = "nFeature_Spatial", pt.size = 0.1) + 
+  ggtitle("Genes") +
+  theme(axis.text.x = element_blank(), 
+        axis.title.x = element_blank(), 
+        legend.position = "right") +
+  NoLegend()
+
+plot3 <- VlnPlot(breast_cancer, features = "pct.mito", pt.size = 0.1) + 
+  ggtitle("Percentage Mito genes") +
+  theme(axis.text.x = element_blank(), 
+        axis.title.x = element_blank(), 
+        legend.position = "right") +
+  NoLegend()
+plot4 <- SpatialFeaturePlot(breast_cancer, features = "nCount_Spatial") + 
+  theme(legend.position = "right")
+
+plot5 <- SpatialFeaturePlot(breast_cancer, features = "nFeature_Spatial") +
+  theme(legend.position = "right")
+plot6 <- SpatialFeaturePlot(breast_cancer, features = "pct.mito") +
+  theme(legend.position = "right")
+
+plot1 + plot2 + plot3  + plot4 + plot5 + plot6 + plot_layout(nrow = 2, ncol = 3)
+```
+
+## Normalization
+
+Spaceranger does UMI normalization for clustering and differential expression but does not return that normalized matrix.
+
+Let's have a look at pre-normalization raw UMI counts. Feel free to change these genes or add genes.
+```{r, fig.width=10, warning=FALSE}
+SpatialFeaturePlot(breast_cancer, features = c("ERBB2", "CD8A", "MT-ND1"))
+```
+
+### SE transform
+
++  This will take ~3-4 min. 
+
+Don't worry about `reachediteration limit` warnings. See https://github.com/ChristophH/sctransform/issues/25 for discussion
+
+Default assay will now be set to SCT
+```{r warning=FALSE}
+breast_cancer <- SCTransform(breast_cancer, assay = "Spatial", verbose = FALSE)
+```
+
+Now let's have a look at SCT normalized UMI counts for these same genes. The Default Assays is now "SCT"
+```{r, fig.width=10, warning=FALSE}
+SpatialFeaturePlot(breast_cancer, features = c("ERBB2", "CD8A"))
+```
+
+From Seurat: 
+
+The default parameters in Seurat emphasize the visualization of molecular data. However, you can also adjust the size of the spots (and their transparency) to improve the visualization of the histology image, by changing the following parameters:
+
++  pt.size.factor- This will scale the size of the spots. Default is 1.6
++  alpha - minimum and maximum transparency. Default is c(1, 1).
++  Try setting to alpha c(0.1, 1), to downweight the transparency of points with lower expression
+
+```{r, fig.width=10, warning=FALSE}
+p1 <- SpatialFeaturePlot(breast_cancer, features = "IGFBP5", pt.size.factor = 1)+ 
+  theme(legend.position = "right") +
+  ggtitle("Actual Spot Size")
+p2 <- SpatialFeaturePlot(breast_cancer, features = "IGFBP5")+ 
+  theme(legend.position = "right") +
+  ggtitle("Scaled Spot Size")
+p1 + p2
+```
+
+### Dimensionality reduction, clustering, and visualization
+
+We can then proceed to run dimensionality reduction and clustering on the RNA expression data, using the same workflow as we use for scRNA-seq analysis.
+
+Some of these processes can be parallized please see [Parallelization in Seurat](https://satijalab.org/seurat/v3.1/future_vignette.html) for more info
+
+The default UMAP calculation is performed with the [R-based UWOT](https://cran.r-project.org/web/packages/uwot/index.html) library However, you can run UMAP in python via the reticulate library and `umap-learn`. We have found that for smaller data sets (<= 10k cells/spots) UWOT is great. For much larger data sets (100k + cells/spots) `umap-learn` can be a faster option.
+
+#### Dimensionality reduction
+
+First Let's Run our PCA. How many PCs should we use going forward?
+```{r}
+breast_cancer <- RunPCA(breast_cancer, assay = "SCT", verbose = FALSE)
+breast_cancer <- FindVariableFeatures(breast_cancer)
+ElbowPlot(breast_cancer, ndims = 40)
+```
+#### Clustering
+
+Now let's cluster and project to UMAP. Does 30 PCs look okay? What if we changed the number of dimensions to 20?
+```{r}
+breast_cancer <- FindNeighbors(breast_cancer, reduction = "pca", dims = 1:30)
+breast_cancer <- FindClusters(breast_cancer, verbose = FALSE)
+```
+
+
+```{r}
+breast_cancer <- RunUMAP(breast_cancer, reduction = "pca", dims = 1:30)
+```
+
+Now let's have a look at the clustering in UMAP space
+
+```{r, fig.width=10}
+p1 <- DimPlot(breast_cancer, reduction = "umap", label = FALSE) +
+  labs(color = "Cluster")
+
+p2 <- FeaturePlot(breast_cancer, features = c('nFeature_Spatial','pct.mito'), dims = 1:2)
+
+p1 / p2 
+```
+
+Here's the clustering in UMAP and image space
+```{r, fig.width=10,fig.height=10, warning=FALSE}
+p1 <- DimPlot(breast_cancer, reduction = "umap", label = TRUE) +
+  labs(color = "Cluster")
+p2 <- SpatialDimPlot(breast_cancer, label = TRUE, label.size = 3) +
+  labs(fill = "Cluster")
+
+p1 + p2 + plot_annotation(
+  title = 'Clustering in UMAP and Tissue Space',
+  caption = 'Processed by Spaceranger 1.1\nNormalization and Clustering by Seurat'
+) + plot_layout(nrow = 1)
+```
+
+I don't really like these colors so let's change them manually
+
+```{r, fig.width=10, fig.height=10, warning=FALSE}
+p1 <- DimPlot(breast_cancer, reduction = "umap", label = TRUE) +
+  labs(color = "Cluster") + 
+  scale_color_manual(values = c("#b2df8a","#e41a1c","#377eb8","#4daf4a","#ff7f00","gold", 
+                               "#a65628", "#999999", "black", "pink", "purple", "brown",
+                               "grey", "yellow", "green"))
+
+p2 <- SpatialDimPlot(breast_cancer, label = TRUE, label.size = 3) +
+  labs(fill = "Cluster")+ 
+  scale_fill_manual(values = c("#b2df8a","#e41a1c","#377eb8","#4daf4a","#ff7f00","gold", 
+                               "#a65628", "#999999", "black", "pink", "purple", "brown",
+                               "grey", "yellow", "green"))
+
+p1 + p2 + plot_annotation(
+  title = 'Clustering in UMAP and Tissue Space',
+  caption = 'Processed by Spaceranger 1.1\nNormalization and Clustering by Seurat'
+) + plot_layout(nrow = 1)
+```
+
+If interested you can also now look at UMI and Gene counts per cluster as well
+```{r}
+plot1 <- VlnPlot(breast_cancer, features = "nCount_Spatial", pt.size = 0.1) + 
+  ggtitle("UMI") +
+  scale_fill_manual(values = c("#b2df8a","#e41a1c","#377eb8","#4daf4a","#ff7f00","gold", 
+                               "#a65628", "#999999", "black", "pink", "purple", "brown",
+                               "grey", "yellow", "green"))+
+  theme(axis.text.x = element_blank(), 
+        axis.title.x = element_blank(), 
+        legend.position = "right") +
+  NoLegend()
+
+plot2 <- VlnPlot(breast_cancer, features = "nFeature_Spatial", pt.size = 0.1) + 
+  ggtitle("Genes") +
+  scale_fill_manual(values = c("#b2df8a","#e41a1c","#377eb8","#4daf4a","#ff7f00","gold", 
+                               "#a65628", "#999999", "black", "pink", "purple", "brown",
+                               "grey", "yellow", "green"))+
+  theme(axis.title.x = element_blank(), 
+        legend.position = "right") +
+  NoLegend()
+
+plot1 + plot2
+```
+
+We can also look at some of our QC information by cluster now that we've processed the data
+```{r, fig.width=10,fig.height=4, warning=FALSE}
+plot1 <- VlnPlot(breast_cancer, features = "nCount_Spatial", pt.size = 0.1) + 
+  ggtitle("UMI") +
+  theme(axis.text.x = element_blank(), 
+        axis.title.x = element_blank(), 
+        legend.position = "right") +
+  NoLegend()
+
+plot2 <- VlnPlot(breast_cancer, features = "nFeature_Spatial", pt.size = 0.1) + 
+  ggtitle("Genes") +
+  theme(axis.text.x = element_blank(), 
+        axis.title.x = element_blank(), 
+        legend.position = "right") +
+  NoLegend()
+
+plot3 <- VlnPlot(breast_cancer, features = "pct.mito", pt.size = 0.1) + 
+  ggtitle("Percentage Mito genes") +
+  theme(axis.text.x = element_blank(), 
+        axis.title.x = element_blank(), 
+        legend.position = "right") +
+  NoLegend()
+plot4 <- SpatialFeaturePlot(breast_cancer, features = "nCount_Spatial") + 
+  theme(legend.position = "right")
+
+plot5 <- SpatialFeaturePlot(breast_cancer, features = "nFeature_Spatial") +
+  theme(legend.position = "right")
+plot6 <- SpatialFeaturePlot(breast_cancer, features = "pct.mito") +
+  theme(legend.position = "right")
+
+plot1 + plot2 + plot3  + plot4 + plot5 + plot6 + plot_layout(nrow = 2, ncol = 3)
+```
+
+Now let's take a look at at a gene of interest with violin plots but also in image space. The triangles represent the mean expression of each cluster.
+```{r, fig.width=12, fig.height=8, warning=FALSE}
+p1 <- VlnPlot(breast_cancer, features = "IGFBP5", pt.size = 0.1) + 
+              ggtitle("IGFBP5") +
+              scale_fill_manual(values = c("#b2df8a","#e41a1c","#377eb8","#4daf4a","#ff7f00","gold", 
+                                           "#a65628", "#999999", "black", "pink", "purple", "brown",
+                                           "grey", "yellow", "green"))+
+              theme(axis.title.x = element_blank(), 
+                    legend.position = "right") +
+              NoLegend() +
+              stat_summary(fun=mean, geom="point", shape=23, size=4, color="red")
+
+p2 <- SpatialFeaturePlot(breast_cancer, features = "IGFBP5")+ 
+  theme(legend.position = "right")
+
+p3 <- SpatialDimPlot(breast_cancer, label = TRUE, label.size = 3) +
+  labs(fill = "Cluster")+ 
+  scale_fill_manual(values = c("#b2df8a","#e41a1c","#377eb8","#4daf4a","#ff7f00","gold", 
+                               "#a65628", "#999999", "black", "pink", "purple", "brown",
+                               "grey", "yellow", "green")) +
+  NoLegend()
+
+row1 <- p2 + p3 + plot_layout(nrow = 1)
+
+row1 + p1+ plot_layout(nrow = 2, widths = c(0.5, 0.5))
+```
+
+We can also look at these data interactively. This function can be a little slow but also very useful to visualize expression in different projection spaces. We won't run this today
+
+```
+LinkedDimPlot(breast_cancer)
+```
+
+## Spatially variable features
+
+First we'll identify deferentially expressed genes. Let's find all the markers for every cluster. We've already pre calculated these for you so let's just load them up. 
+
+```{r, eval=FALSE}
+de_markers <- readRDS(file = "/mnt/libs/shared_data/de_markers.rds")
+
+de_markers %>%
+  group_by(cluster) %>% 
+  top_n(n = 2, wt = avg_logFC)
+```
+
+Originally this was processed with 
+```
+de_markers <- FindAllMarkers(breast_cancer, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+```
+
+### Identify the most up-regulated and down-regulated genes
+```{r}
+de_markers_up <- de_markers %>%
+  arrange(-avg_logFC)
+
+de_markers_down <- de_markers %>%
+  arrange(avg_logFC)
+```
+
+```{r}
+de_markers_up
+```
+
+```{r}
+de_markers_down
+```
+
+#### Most up-regulated genes
+```{r, fig.width=10, fig.height=10, warning=FALSE}
+SpatialFeaturePlot(object = breast_cancer, features = de_markers_up$gene[1:13], alpha = c(0.1, 1), ncol = 3)
+```
+
+#### Most down-regulated genes
+```{r, fig.width=10, fig.height=10, warning=FALSE}
+SpatialFeaturePlot(object = breast_cancer, features = de_markers_down$gene[1:13], alpha = c(0.1, 1), ncol = 3)
+```
+
+What are the top variable features?
+```{r}
+VariableFeatures(breast_cancer)[1:10]
+```
+
+What are the top DE genes?
+```{r}
+rownames(de_markers)[1:10]
+```
+
+## Spatially Variable Genes
+
+So what about spatial enrichment? This can be a very informative analysis tool that takes into the spatial relationship of each gene.
+
+Some methods for these approaches are:
+
+1. [Trendsceek](https://www.nature.com/articles/nmeth.4634)
+2. [Splotch](https://www.biorxiv.org/content/10.1101/757096v1)
+3. [SPARK](https://www.nature.com/articles/s41592-019-0701-7)
+4. [SpatialDE](https://www.nature.com/articles/nmeth.4636)
+  + We have found this implementation not to be very effective. It's also not under active development
+
+
+Using the top 100 variable genes find spatially enriched ones. Note that in the Seurat Spatial Tutorial they use 1000 genes (this can take a long time). You can also use all genes but that will take a long time. Using a calculation of [Morans I](https://en.wikipedia.org/wiki/Moran%27s_I) can sometimes be a faster approach, especially if you are using parallization. Here we'll do both.
+
+While this process is running it is a good time to take a short couple minute break, catch up, or ask questions.
+
+
+```{r}
+breast_cancer <- FindSpatiallyVariableFeatures(breast_cancer, 
+                                               assay = "SCT", 
+                                               slot = "scale.data", 
+                                               features = VariableFeatures(breast_cancer)[1:100],
+                                               selection.method = "markvariogram", verbose = TRUE)
+```
+
+Have a look at the spatially variable genes calculated by `markvariogram` ordered from most variable to least variable
+```{r}
+SpatiallyVariableFeatures(breast_cancer, selection.method = "markvariogram", decreasing = TRUE)
+```
+
+```{r, fig.width=10, fig.height=8, warning=FALSE}
+top.features_trendseq <- head(SpatiallyVariableFeatures(breast_cancer, selection.method = "markvariogram"), 8)
+SpatialFeaturePlot(breast_cancer, features = top.features_trendseq, ncol = 4, alpha = c(0.1, 1))
+```
+
+Moran's I implementation. For other spatial data types the x.cuts and y.cuts determines the grid that is laid over the tissue in the capture area. Here we'll remove those
+```{r}
+breast_cancer <- FindSpatiallyVariableFeatures(breast_cancer, 
+                                               assay = "SCT", 
+                                               slot = "scale.data", 
+                                               features = VariableFeatures(breast_cancer)[1:100],
+                                               selection.method = "moransi")
+```
+
+
+Have a look at the spatially variable genes calculated by `moransi` ordered from most variable to least variable
+
+```{r}
+SpatiallyVariableFeatures(breast_cancer, selection.method = "moransi", decreasing = TRUE)
+```
+
+```{r, fig.width=10, fig.height=8, warning=FALSE}
+top.features_moransi <- head(SpatiallyVariableFeatures(breast_cancer, selection.method = "moransi"), 8)
+SpatialFeaturePlot(breast_cancer, features = top.features_moransi, ncol = 4, alpha = c(0.1, 1))
+```
+
+We can see that the results are slightly different. So let's take a look at what those difference are
+
+```{r}
+spatially_variable_genes <- breast_cancer@assays$SCT@meta.features %>%
+  tidyr::drop_na()
+
+spatially_variable_genes
+```
+You can see the two methods show 
+```{r}
+mm_cor <- cor.test(spatially_variable_genes$moransi.spatially.variable.rank, spatially_variable_genes$markvariogram.spatially.variable.rank)
+ggplot(spatially_variable_genes, aes(x=moransi.spatially.variable.rank,y=markvariogram.spatially.variable.rank))+
+  geom_point()+
+  geom_smooth()+
+  xlab("Morans I Rank")+
+  ylab("Markvariogram Rank")+
+  annotate("text", x = 25, y = 75, label = paste("Pearson's Correlation\n", round(mm_cor$estimate[1], digits = 2), sep = ""))+
+  theme_bw()
+```
+
+
+We can identify these outliers interactively using ggplotly
+```{r, warning}
+plotly::ggplotly(
+  ggplot(spatially_variable_genes, aes(x=moransi.spatially.variable.rank,y=markvariogram.spatially.variable.rank, label =row.names(spatially_variable_genes)))+
+  geom_point()+
+  geom_smooth()+
+  xlab("Morans I Rank")+
+  ylab("Markvariogram Rank")+
+  annotate("text", x = 25, y = 75, label = paste("Pearson's Correlation\n", round(mm_cor$estimate[1], digits = 2), sep = ""))+
+  theme_bw()
+)
+```
+
+
+## Cancer annotations
+
+Where are these genes being expressed relative to pathologist annotation?
+
+```{r, fig.height=8, fig.width=8}
+ca <- readbitmap::read.bitmap('/mnt/libs/shared_data/human_breast_cancer_1/images/Breast_Cancer_Path.png')
+plot(0:1,0:1,type="n",ann=FALSE,axes=FALSE)
+rasterImage(ca,0,0,1,1)
+```
+
+Looks like the  Matrix Gla protein ( _MGP_ ) gene is enriched in Ductal Carcinoma _In Situ_. Not a lot is known about _MGP_ in the context of cancer but it looks like it could be an interesting novel gene to investigate with regard to Ductal Carcinoma _In Situ_.
+
+```{r, warning=FALSE}
+SpatialFeaturePlot(object = breast_cancer, features = "MGP", alpha = c(0.1, 1), ncol = 3)
+```
+
+# **Single cell/nuclei integration**
+
+Here we have a preprocessed Seurat object with 10k nuclei annotated from a breast cancer sample. Don't bother too much with the details of how this data was generated they don't particularly matter for our purposes. 
+
+## Load the Seurat object
+
+```{r eval=FALSE, include=TRUE}
+bc_snRNA <- readRDS("/mnt/libs/shared_data/bc_snRNA.rds")
+```
+
+
+```{r}
+bc_snRNA
+```
+
+It's always a good idea to rerun normalization to make sure your data is in the correct format before moving forward with integration. We've already preprocessed this dataset.
+
+```
+bc_snRNA <- SCTransform(bc_snRNA, ncells = 3000, verbose = FALSE) %>% 
+  RunPCA(verbose = FALSE) %>% 
+  RunUMAP(dims = 1:30)
+```
+
+snRNA Class
+```{r, fig.width=10}
+DimPlot(bc_snRNA, group.by = "ident", label = FALSE) +
+   scale_color_manual(values = c("#b2df8a","#e41a1c","#377eb8","#4daf4a","#ff7f00","gold", 
+                               "#a65628", "#999999", "black", "pink", "purple", "brown",
+                               "grey", "yellow", "green", "darkgreen"))
+```
+
+Subclass
+```{r, fig.width=10}
+DimPlot(bc_snRNA, group.by = "subclass", label = FALSE)
+```
+
+## snRNA Differentially Expressed Genes
+
+What genes define some cell types?
+
+```
+# Find markers for every cluster compared to all remaining cells, report only the positive ones
+# This takes a bit of time so we'll skip it and move on to specific cell types
+de_markers_snRNA <- FindAllMarkers(bc_snRNA, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+de_markers_snRNA %>% 
+  group_by(cluster) %>% 
+  top_n(n = 2, wt = avg_logFC)
+```
+
+Notice here that we are using `test.use = "roc"` which is a AUC classifier which will give us an idea as to how well any given gene defines a cell type.
+
+**Find markers that define Tumor cells**
+
+```{r echo=FALSE, results='hide', fig.keep='all', message = FALSE}
+de_markers_tumor <- FindMarkers(bc_snRNA, ident.1 = "Likely tumor cells", logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE, verbose = FALSE)
+```
+
+
+```{r}
+de_markers_tumor %>%
+  tibble::rownames_to_column("gene") %>% 
+  arrange(-power)
+```
+
+
+```{r, warning=FALSE, fig.width=10}
+(FeaturePlot(bc_snRNA, features = "CASC15") |
+ DimPlot(bc_snRNA, group.by = "ident", label = FALSE)+
+   scale_color_manual(values = c("#b2df8a","#e41a1c","#377eb8","#4daf4a","#ff7f00","gold", 
+                               "#a65628", "#999999", "black", "pink", "purple", "brown",
+                               "grey", "yellow", "green", "darkgreen")))
+```
+
+**Find markers that define T cells**
+```{r, echo=FALSE, results='hide', fig.keep='all', message = FALSE}
+de_markers_tcell <- FindMarkers(bc_snRNA, ident.1 = "T cells", logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE, verbose = FALSE)
+```
+
+
+```{r}
+de_markers_tcell %>%
+  tibble::rownames_to_column("gene") %>% 
+  arrange(-power)
+```
+
+```{r, warning=FALSE, fig.width=10}
+(FeaturePlot(bc_snRNA, features = "SKAP1")|
+ DimPlot(bc_snRNA, group.by = "ident", label = FALSE)+
+   scale_color_manual(values = c("#b2df8a","#e41a1c","#377eb8","#4daf4a","#ff7f00","gold", 
+                               "#a65628", "#999999", "black", "pink", "purple", "brown",
+                               "grey", "yellow", "green", "darkgreen")))
+```
+
+**Find markers that define stem cells**
+```{r}
+de_markers_stemcell <- FindMarkers(bc_snRNA, ident.1 = "CD49f-hi MaSCs", logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE, verbose = FALSE)
+```
+
+
+```{r}
+de_markers_stemcell %>%
+  tibble::rownames_to_column("gene") %>% 
+  arrange(-power)
+```
+
+```{r, warning=FALSE, fig.width=10}
+(FeaturePlot(bc_snRNA, features = "IFNG-AS1")|
+ DimPlot(bc_snRNA, group.by = "ident", label = FALSE)+
+   scale_color_manual(values = c("#b2df8a","#e41a1c","#377eb8","#4daf4a","#ff7f00","gold", 
+                               "#a65628", "#999999", "black", "pink", "purple", "brown",
+                               "grey", "yellow", "green", "darkgreen")))
+```
+
+## Identify and Transfer Anchors
+
+```{r}
+anchors <- FindTransferAnchors(reference = bc_snRNA, query = breast_cancer,normalization.method = "SCT")
+
+predictions.assay <- TransferData(anchorset = anchors, refdata = bc_snRNA$subclass, prediction.assay = TRUE, 
+    weight.reduction = breast_cancer[["pca"]])
+
+breast_cancer[["predictions"]] <- predictions.assay
+
+DefaultAssay(breast_cancer) <- "predictions"
+```
+
+Let's have a look at our annotations again.
+
+```{r, fig.height=8, fig.width=8}
+ca <- readbitmap::read.bitmap('/mnt/libs/shared_data/human_breast_cancer_1/images/Breast_Cancer_Path.png')
+plot(0:1,0:1,type="n",ann=FALSE,axes=FALSE)
+rasterImage(ca,0,0,1,1)
+```
+
+
+## Immune Microenvironment
+### T cell subtypes
+
+__NOTE__ we'll work with subclass
+
+What about the immune microenvironment? 
+
+Ducal Carcinoma _in situ_ is depleted of T-cells
+```{r, fig.width=15, warning=FALSE}
+(SpatialFeaturePlot(breast_cancer, 
+                   features = c("T cells-0"), 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE) |
+SpatialFeaturePlot(breast_cancer, 
+                   features = c("T cells-1"), 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)) /
+(SpatialFeaturePlot(breast_cancer, 
+                   features = c("T cells-2"), 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE) |
+SpatialFeaturePlot(breast_cancer, 
+                   features = c("T cells-5"), 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE))
+```
+
+### B cell subtypes
+
+B cells are enriched in the fibrous tissue outside the tumor
+```{r, fig.width=15, warning=FALSE}
+SpatialFeaturePlot(breast_cancer, 
+                   features = c("B cells"), 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)
+```
+
+
+There seem to be some ductal cells but have a look at our score. Are we confident in this assertion? 
+```{r, fig.width=10, warning=FALSE}
+SpatialFeaturePlot(breast_cancer, 
+                   features = c("Ductal cells"), 
+                   pt.size.factor = 1.5,  crop = TRUE)
+```
+## Tumor Subtypes
+
+It looks like the ducal carcinoma _in situ_ is enriched for tumor subtypes 8, 10, and 12 but not 3. 
+```{r, fig.width=15, warning=FALSE}
+(SpatialFeaturePlot(breast_cancer, 
+                   features = c("Tumor cells-3"), 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE) |
+SpatialFeaturePlot(breast_cancer, 
+                   features = c("Tumor cells-8"), 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE)) /
+(SpatialFeaturePlot(breast_cancer, 
+                   features = c("Tumor cells-10"), 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE) |
+SpatialFeaturePlot(breast_cancer, 
+                   features = c("Tumor cells-12"), 
+                   pt.size.factor = 1.5, ncol = 2, crop = TRUE))
+```
+
+Like the Ductal Cells, we might not be as confident in the Tumor Stem Cells but this might make sense considering the 10x snRNA dataset and the Visium dataset are from different individuals.
+```{r, fig.width=10, warning=FALSE}
+SpatialFeaturePlot(breast_cancer, 
+                   features = c("CD49f-hi MaSCs"), 
+                   pt.size.factor = 1.5,crop = TRUE) + 
+plot_annotation(
+  title = 'Tumor Stem Cells')
+```
