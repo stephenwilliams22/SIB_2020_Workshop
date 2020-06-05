@@ -44,19 +44,12 @@ Please note that this tutorial is largely an extension off of the primary [Seura
 
 ## Load our packages
 
-First we'll set the _libPath_ to make sure we are all using the same set of pre-installed libraries.
-for 10x
-```{r}
+```{r, echo=FALSE}
 .libPaths(new = c("/mnt/home/stephen.williams/R/x86_64-conda_cos6-linux-gnu-library/3.6",
                   "/mnt/opt/R/R-3.6.1-conda-openblas/R-library" ,                        
                   "/mnt/opt/R/R-3.6.1-conda-openblas/env/lib/R/library"))
 ```
 
-
-for tutorial
-```{r, eval=FALSE}
-.libPaths(new = "/usr/lib64/R/library")
-```
 
 ```{r Libraries, echo=TRUE, message=FALSE, warning=FALSE}
 library(Seurat)
@@ -64,6 +57,11 @@ library(ggplot2)
 library(patchwork)
 library(dplyr)
 library(RColorBrewer)
+```
+
+If you have problems we'll set the _libPath_ to make sure we are all using the same set of pre-installed libraries.
+```{r, eval=FALSE}
+.libPaths(new = "/usr/lib64/R/library")
 ```
 
 ## Loading data in a Seurat object
