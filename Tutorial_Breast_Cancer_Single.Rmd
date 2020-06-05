@@ -39,9 +39,6 @@ Please note that this tutorial is largely an extension off of the primary [Seura
 5. Most Seurat figures can be controlled with patchwork because they are fundamentally ggplot objects. Some really nice examples can be found on the [Patchwork GitHub](https://patchwork.data-imaginist.com/articles/guides/layout.html)
 6. This tutorial is _NOT_ officially supported by 10x genomics. It is simply for informative purposes and to provide the groundwork for individuals to get started with 3rd party analysis tools.
 
-
-# **Exploring Visium Data with Seurat**
-
 ## Load our packages
 
 ```{r, echo=FALSE}
@@ -84,7 +81,7 @@ DefaultAssay(breast_cancer)
 ```
 It's good to note that there are a bunch of Visium data sets hosted by the Satija lab in the [Seurat Data Package](https://github.com/satijalab/seurat-data).
 
-# **Results**
+# **Exploring Visium Data with Seurat**
 ## QC
 
 It's very easy to add metadata to your Seurat object with any values you want to check out on top of the defaults.
