@@ -45,6 +45,15 @@ Please note that this tutorial is largely an extension off of the primary [Seura
 ## Load our packages
 
 First we'll set the _libPath_ to make sure we are all using the same set of pre-installed libraries.
+for 10x
+```{r}
+.libPaths(new = c("/mnt/home/stephen.williams/R/x86_64-conda_cos6-linux-gnu-library/3.6",
+                  "/mnt/opt/R/R-3.6.1-conda-openblas/R-library" ,                        
+                  "/mnt/opt/R/R-3.6.1-conda-openblas/env/lib/R/library"))
+```
+
+
+for tutorial
 ```{r, eval=FALSE}
 .libPaths(new = "/usr/lib64/R/library")
 ```
@@ -173,7 +182,7 @@ breast_cancer <- RunUMAP(breast_cancer, reduction = "pca", dims = 1:30)
 Now let's have a look at the clustering in UMAP space
 
 ```{r, fig.width=8}
-DimPlot(breast_cancer, reduction = "umap", label = FALSE,) +
+DimPlot(breast_cancer, reduction = "umap", label = FALSE) +
   labs(color = "Cluster")
 ```
 
@@ -262,17 +271,29 @@ row1 <- p2 + p3 + plot_layout(nrow = 1)
 row1 + p1+ plot_layout(nrow = 2, widths = c(0.5, 0.5))
 ```
 
-We can also look at these data interactively. This function can be a little slow but also very useful to visualize expression in different projection spaces.
+We can also look at these data interactively. This function can be a little slow but also very useful to visualize expression in different projection spaces. We won't run this
 
-```{r eval=FALSE, include=TRUE}
+```
 LinkedDimPlot(breast_cancer)
 ```
 
 ## Spatially variable features
 
 First we'll identify deferentially expressed genes. Let's find all the markers for every cluster. We've already pre calculated these for you so let's just load them up. 
+workshop
+```{r, eval=FALSE}
+de_markers <- readRDS(file = "/mnt/libs/shared_data/de_markers.rds")
+
+de_markers %>%
+  group_by(cluster) %>% 
+  top_n(n = 2, wt = avg_logFC)
+```
+
+
+
+10x
 ```{r}
-de_markers <- readRDS(file = "de_markers.rds")
+de_markers <- readRDS(file = "/mnt/home/stephen.williams/yard/Odin/SIB_2020_Workshop/de_markers.rds")
 
 de_markers %>%
   group_by(cluster) %>% 
@@ -418,7 +439,7 @@ plotly::ggplotly(
 Where are these genes being expressed relative to pathologist annotation?
 
 ```{r, fig.height=8, fig.width=8}
-ca <- readbitmap::read.bitmap("images/Breast Cancer Path.png")
+ca <- readbitmap::read.bitmap("/mnt/home/stephen.williams/yard/Odin/SIB_2020_Workshop/images/Breast Cancer Path.png")
 # in the tutorial
 # ca <- readbitmap::read.bitmap('/mnt/libs/shared_data/human_breast_cancer_1/images/Breast_Cancer_Path.png')
 plot(0:1,0:1,type="n",ann=FALSE,axes=FALSE)
@@ -553,7 +574,7 @@ DefaultAssay(breast_cancer) <- "predictions"
 Let's have a look at our annotations again.
 
 ```{r, fig.height=8, fig.width=8}
-ca <- readbitmap::read.bitmap("images/Breast Cancer Path.png")
+ca <- readbitmap::read.bitmap("/mnt/home/stephen.williams/yard/Odin/SIB_2020_Workshop/images/Breast Cancer Path.png")
 # in the tutorial
 # ca <- readbitmap::read.bitmap('/mnt/libs/shared_data/human_breast_cancer_1/images/Breast_Cancer_Path.png')
 plot(0:1,0:1,type="n",ann=FALSE,axes=FALSE)
