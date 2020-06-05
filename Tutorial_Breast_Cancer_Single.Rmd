@@ -2,7 +2,7 @@
 title: "SIB Days 2020 - Virtual Conference - June 8, 2020"
 subtitle: 'Dataset: Breast Cancer'
 author:
-- Dr. Patrick Roelli, Computational Biologist 2 - Computational Biology^[10x Genomics,
+- Patrick Roelli, MSc., Computational Biologist 2 - Computational Biology^[10x Genomics,
   patrick.roelli@10xgenomics.com ]
 - Dr. Stefania Giacomello, Computational Biologist 2 - Computational Biology^[10x
   Genomics, stefania.giacomello@10xgenomics.com]
@@ -89,12 +89,22 @@ It's good to note that there are a bunch of Visium data sets hosted by the Satij
 
 # **Results**
 ## QC
+
+It's very easy to add metadata to your Seurat object with any values you want to check out on top of the defaults.
+
+```{r, fig.width=10,fig.height=8, warning=FALSE}
+mito.gene.names <- grep("^mt-", rownames(breast_cancer@assays$Spatial), value = TRUE, ignore.case = TRUE)
+col.total <- Matrix::colSums(breast_cancer@assays$Spatial)
+breast_cancer <- AddMetaData(breast_cancer, Matrix::colSums(breast_cancer@assays$Spatial[mito.gene.names, ]) / col.total, "pct.mito")
+```
+
+
 Let's have a look at some basic QC information. Keep in mind that most Seurat plots are ggplot object and can be manipulated as such.
 
 **Counts = UMI**
 
 **Features = Genes**
-```{r, fig.width=10,fig.height=8, warning=FALSE}
+```{r, fig.width=10,fig.height=4, warning=FALSE}
 plot1 <- VlnPlot(breast_cancer, features = "nCount_Spatial", pt.size = 0.1) + 
   ggtitle("UMI") +
   theme(axis.text.x = element_blank(), 
@@ -109,13 +119,21 @@ plot2 <- VlnPlot(breast_cancer, features = "nFeature_Spatial", pt.size = 0.1) +
         legend.position = "right") +
   NoLegend()
 
-plot3 <- SpatialFeaturePlot(breast_cancer, features = "nCount_Spatial") + 
+plot3 <- VlnPlot(breast_cancer, features = "pct.mito", pt.size = 0.1) + 
+  ggtitle("Percentage Mito genes") +
+  theme(axis.text.x = element_blank(), 
+        axis.title.x = element_blank(), 
+        legend.position = "right") +
+  NoLegend()
+plot4 <- SpatialFeaturePlot(breast_cancer, features = "nCount_Spatial") + 
   theme(legend.position = "right")
 
-plot4 <- SpatialFeaturePlot(breast_cancer, features = "nFeature_Spatial") +
+plot5 <- SpatialFeaturePlot(breast_cancer, features = "nFeature_Spatial") +
+  theme(legend.position = "right")
+plot6 <- SpatialFeaturePlot(breast_cancer, features = "pct.mito") +
   theme(legend.position = "right")
 
-plot1 + plot2 + plot3  + plot4 + plot_layout(nrow = 2, ncol = 2)
+plot1 + plot2 + plot3  + plot4 + plot5 + plot6 + plot_layout(nrow = 2, ncol = 3)
 ```
 
 ## Normalization
@@ -124,7 +142,7 @@ Spaceranger does UMI normalization for clustering and differential expression bu
 
 Let's have a look at pre-normalization raw UMI counts. Feel free to change these genes or add genes.
 ```{r, fig.width=10, warning=FALSE}
-SpatialFeaturePlot(breast_cancer, features = c("ERBB2", "CD8A"))
+SpatialFeaturePlot(breast_cancer, features = c("ERBB2", "CD8A", "MT-ND1"))
 ```
 
 ### SE transform
@@ -170,20 +188,35 @@ Some of these processes can be parallized please see [Parallelization in Seurat]
 The default UMAP calculation is performed with the [R-based UWOT](https://cran.r-project.org/web/packages/uwot/index.html) library However, you can run UMAP in python via the reticulate library and `umap-learn`. We have found that for smaller data sets (<= 10k cells/spots) UWOT is great. For much larger data sets (100k + cells/spots) `umap-learn` can be a faster option.
 
 #### Dimensionality reduction
+
+First Let's Run our PCA. How many PCs should we use going forward?
 ```{r}
 breast_cancer <- RunPCA(breast_cancer, assay = "SCT", verbose = FALSE)
+breast_cancer <- FindVariableFeatures(breast_cancer)
+ElbowPlot(breast_cancer, ndims = 40)
+```
+#### Clustering
+
+Now let's cluster and project to UMAP. Does 30 PCs look okay? What if we changed the number of dimensions to 20?
+```{r}
 breast_cancer <- FindNeighbors(breast_cancer, reduction = "pca", dims = 1:30)
 breast_cancer <- FindClusters(breast_cancer, verbose = FALSE)
+```
+
+
+```{r}
 breast_cancer <- RunUMAP(breast_cancer, reduction = "pca", dims = 1:30)
 ```
 
-#### Clustering
-
 Now let's have a look at the clustering in UMAP space
 
-```{r, fig.width=8}
-DimPlot(breast_cancer, reduction = "umap", label = FALSE) +
+```{r, fig.width=10}
+p1 <- DimPlot(breast_cancer, reduction = "umap", label = FALSE) +
   labs(color = "Cluster")
+
+p2 <- FeaturePlot(breast_cancer, features = c('nFeature_Spatial','pct.mito'), dims = 1:2)
+
+p1 / p2 
 ```
 
 Here's the clustering in UMAP and image space
@@ -195,7 +228,7 @@ p2 <- SpatialDimPlot(breast_cancer, label = TRUE, label.size = 3) +
 
 p1 + p2 + plot_annotation(
   title = 'Clustering in UMAP and Tissue Space',
-  caption = 'Processed by Spaceranger 1.1\nNormilization and Clustering by Seurat'
+  caption = 'Processed by Spaceranger 1.1\nNormalization and Clustering by Seurat'
 ) + plot_layout(nrow = 1)
 ```
 
@@ -216,7 +249,7 @@ p2 <- SpatialDimPlot(breast_cancer, label = TRUE, label.size = 3) +
 
 p1 + p2 + plot_annotation(
   title = 'Clustering in UMAP and Tissue Space',
-  caption = 'Processed by Spaceranger 1.1\nNormilization and Clustering by Seurat'
+  caption = 'Processed by Spaceranger 1.1\nNormalization and Clustering by Seurat'
 ) + plot_layout(nrow = 1)
 ```
 
@@ -244,6 +277,38 @@ plot2 <- VlnPlot(breast_cancer, features = "nFeature_Spatial", pt.size = 0.1) +
 plot1 + plot2
 ```
 
+We can also look at some of our QC information by cluster now that we've processed the data
+```{r, fig.width=10,fig.height=4, warning=FALSE}
+plot1 <- VlnPlot(breast_cancer, features = "nCount_Spatial", pt.size = 0.1) + 
+  ggtitle("UMI") +
+  theme(axis.text.x = element_blank(), 
+        axis.title.x = element_blank(), 
+        legend.position = "right") +
+  NoLegend()
+
+plot2 <- VlnPlot(breast_cancer, features = "nFeature_Spatial", pt.size = 0.1) + 
+  ggtitle("Genes") +
+  theme(axis.text.x = element_blank(), 
+        axis.title.x = element_blank(), 
+        legend.position = "right") +
+  NoLegend()
+
+plot3 <- VlnPlot(breast_cancer, features = "pct.mito", pt.size = 0.1) + 
+  ggtitle("Percentage Mito genes") +
+  theme(axis.text.x = element_blank(), 
+        axis.title.x = element_blank(), 
+        legend.position = "right") +
+  NoLegend()
+plot4 <- SpatialFeaturePlot(breast_cancer, features = "nCount_Spatial") + 
+  theme(legend.position = "right")
+
+plot5 <- SpatialFeaturePlot(breast_cancer, features = "nFeature_Spatial") +
+  theme(legend.position = "right")
+plot6 <- SpatialFeaturePlot(breast_cancer, features = "pct.mito") +
+  theme(legend.position = "right")
+
+plot1 + plot2 + plot3  + plot4 + plot5 + plot6 + plot_layout(nrow = 2, ncol = 3)
+```
 
 Now let's take a look at at a gene of interest with violin plots but also in image space. The triangles represent the mean expression of each cluster.
 ```{r, fig.width=12, fig.height=8, warning=FALSE}
@@ -268,10 +333,11 @@ p3 <- SpatialDimPlot(breast_cancer, label = TRUE, label.size = 3) +
   NoLegend()
 
 row1 <- p2 + p3 + plot_layout(nrow = 1)
+
 row1 + p1+ plot_layout(nrow = 2, widths = c(0.5, 0.5))
 ```
 
-We can also look at these data interactively. This function can be a little slow but also very useful to visualize expression in different projection spaces. We won't run this
+We can also look at these data interactively. This function can be a little slow but also very useful to visualize expression in different projection spaces. We won't run this today
 
 ```
 LinkedDimPlot(breast_cancer)
@@ -510,8 +576,12 @@ Notice here that we are using `test.use = "roc"` which is a AUC classifier which
 
 **Find markers that define Tumor cells**
 
+```{r echo=FALSE, results='hide', fig.keep='all', message = FALSE}
+de_markers_tumor <- FindMarkers(bc_snRNA, ident.1 = "Likely tumor cells", logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE, verbose = FALSE)
+```
+
+
 ```{r}
-de_markers_tumor <- FindMarkers(bc_snRNA, ident.1 = "Likely tumor cells", logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE)
 de_markers_tumor %>%
   tibble::rownames_to_column("gene") %>% 
   arrange(-power)
@@ -527,8 +597,12 @@ de_markers_tumor %>%
 ```
 
 **Find markers that define T cells**
+```{r, echo=FALSE, results='hide', fig.keep='all', message = FALSE}
+de_markers_tcell <- FindMarkers(bc_snRNA, ident.1 = "T cells", logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE, verbose = FALSE)
+```
+
+
 ```{r}
-de_markers_tcell <- FindMarkers(bc_snRNA, ident.1 = "T cells", logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE)
 de_markers_tcell %>%
   tibble::rownames_to_column("gene") %>% 
   arrange(-power)
@@ -544,7 +618,11 @@ de_markers_tcell %>%
 
 **Find markers that define stem cells**
 ```{r}
-de_markers_stemcell <- FindMarkers(bc_snRNA, ident.1 = "CD49f-hi MaSCs", logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE)
+de_markers_stemcell <- FindMarkers(bc_snRNA, ident.1 = "CD49f-hi MaSCs", logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE, verbose = FALSE)
+```
+
+
+```{r}
 de_markers_stemcell %>%
   tibble::rownames_to_column("gene") %>% 
   arrange(-power)
