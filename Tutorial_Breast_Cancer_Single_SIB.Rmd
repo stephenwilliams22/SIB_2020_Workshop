@@ -333,7 +333,7 @@ LinkedDimPlot(breast_cancer)
 
 First we'll identify deferentially expressed genes. Let's find all the markers for every cluster. We've already pre calculated these for you so let's just load them up. 
 
-```{r, eval=FALSE}
+```{r}
 de_markers <- readRDS(file = "/mnt/libs/shared_data/de_markers.rds")
 
 de_markers %>%
@@ -497,7 +497,7 @@ Here we have a preprocessed Seurat object with 10k nuclei annotated from a breas
 
 ## Load the Seurat object
 
-```{r eval=FALSE, include=TRUE}
+```{r}
 bc_snRNA <- readRDS("/mnt/libs/shared_data/bc_snRNA.rds")
 ```
 
